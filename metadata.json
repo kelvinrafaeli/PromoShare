@@ -1,0 +1,7 @@
+{
+  "name": "PromoShare",
+  "description": "A comprehensive platform for managing and automated distribution of promotions to Telegram and WhatsApp groups with AI-assisted content optimization.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
