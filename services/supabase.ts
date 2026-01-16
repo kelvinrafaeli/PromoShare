@@ -46,9 +46,9 @@ const mapPromoFromDB = (p: any): Promotion => ({
   status: 'SENT',
   scheduledAt: p.created_at,
   sentAt: p.created_at,
-  ownerId: 'system', // Forçado como system pois a coluna owner_id não existe no banco
+  ownerId: 'system', 
   content: '', 
-  targetGroupIds: [], // Coluna inexistente no banco, gerida em memória/webhook
+  targetGroupIds: [], 
   createdAt: p.created_at
 });
 
@@ -60,7 +60,6 @@ const mapPromoToDB = (p: Promotion) => {
     cupom: p.coupon,
     image_url: p.imageUrl,
     category: p.mainCategoryId
-    // Removidas colunas owner_id e target_group_ids que causaram erro PGRST204
   };
 
   const numericId = Number(p.id);
@@ -127,9 +126,8 @@ export const api = {
     if (error) throw handleSupabaseError(error, 'savePromotion');
     addLog('savePromotion', 'SUCCESS', 'Promoção salva com sucesso');
     
-    // Retornamos o objeto mapeado mas garantimos que o targetGroupIds 
-    // selecionado pelo usuário no UI persista para o próximo passo (webhook)
     const result = mapPromoFromDB(data);
+    // Preservar targetGroupIds que só existem na UI/Webhook
     result.targetGroupIds = promo.targetGroupIds;
     return result;
   },
@@ -146,32 +144,45 @@ export const api = {
     const WEBHOOK_URL = 'http://76.13.66.108:5678/webhook/promoshare';
     addLog('sendToWebhook', 'INFO', { promoId: promo.id, url: WEBHOOK_URL });
     
+    // Verificação de segurança de protocolo para o desenvolvedor
+    if (window.location.protocol === 'https:' && WEBHOOK_URL.startsWith('http:')) {
+      addLog('sendToWebhook', 'ERROR', 'Bloqueio de Conteúdo Misto: Não é possível chamar HTTP de uma página HTTPS.');
+    }
+
     try {
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
-        mode: 'cors',
         headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          ...promo,
-          event: 'promotion_sent',
-          sent_at_webhook: new Date().toISOString(),
-          app_source: 'PromoShare Web',
-          target_groups: promo.targetGroupIds
+          id: promo.id,
+          title: promo.title,
+          price: promo.price,
+          link: promo.link,
+          cupom: promo.coupon,
+          image_url: promo.imageUrl,
+          category: promo.mainCategoryId,
+          target_groups: promo.targetGroupIds,
+          timestamp: new Date().toISOString(),
+          app: 'PromoShare'
         })
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erro ${response.status}: ${errorText || 'Sem resposta do servidor'}`);
+        const txt = await response.text();
+        throw new Error(`Servidor respondeu com erro ${response.status}: ${txt}`);
       }
       
-      addLog('sendToWebhook', 'SUCCESS', 'Dados enviados para o webhook com sucesso');
+      addLog('sendToWebhook', 'SUCCESS', 'Webhook processado corretamente');
       return true;
     } catch (error: any) {
       addLog('sendToWebhook', 'ERROR', error.message || error);
+      
+      // Se for Failed to fetch, é quase certo que é CORS ou Protocolo
+      if (error.message === 'Failed to fetch') {
+        throw new Error('Falha na conexão com o Webhook. Verifique se o n8n permite CORS ou se você está tentando chamar HTTP em um site HTTPS (o que é bloqueado pelo navegador).');
+      }
       throw error;
     }
   },

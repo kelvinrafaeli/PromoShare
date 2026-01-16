@@ -79,16 +79,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       // 1. Salva no Supabase
       const savedPromo = await api.savePromotion(promoToSave);
       
-      // 2. Envia para o Webhook automaticamente
-      try {
-        await api.sendToWebhook(savedPromo);
-        addLog('Automation', 'SUCCESS', 'Enviado automaticamente para o Webhook após salvar.');
-      } catch (webhookError: any) {
-        console.warn('Falha no webhook automático:', webhookError);
-        // Não bloqueamos o salvamento se apenas o webhook falhar, mas avisamos
-        alert(`Promoção salva, mas houve um erro no envio automático: ${webhookError.message}`);
-      }
-
+      // Atualiza o estado da UI imediatamente
       setState(prev => {
         const isUpdate = editingPromo.id && !editingPromo.id.toString().startsWith('temp-');
         const newList = isUpdate
@@ -97,12 +88,26 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
         
         return { ...prev, promotions: newList };
       });
+
+      // 2. Envia para o Webhook automaticamente
+      if (promoToSave.targetGroupIds.length > 0) {
+        try {
+          addLog('Automation', 'INFO', 'Iniciando envio automático para webhook...');
+          await api.sendToWebhook(savedPromo);
+          addLog('Automation', 'SUCCESS', 'Promoção salva e enviada com sucesso.');
+        } catch (webhookError: any) {
+          console.error('Falha no webhook automático:', webhookError);
+          alert(`Oferta salva no banco, mas o envio para o Webhook falhou.\n\nERRO: ${webhookError.message}\n\nDICA: Se o erro for "Failed to fetch", você provavelmente está tentando chamar um endereço HTTP de um site HTTPS. Use HTTPS no seu Webhook (ngrok, tunnel, proxy, etc).`);
+        }
+      } else {
+        addLog('Automation', 'INFO', 'Nenhum canal selecionado, salvando apenas no banco.');
+      }
       
       setIsModalOpen(false);
       setEditingPromo(null);
     } catch (error: any) {
       addLog('UI_SAVE_PROMO_ERROR', 'ERROR', error);
-      alert(error.message || 'Erro ao salvar promoção no banco de dados.');
+      alert(error.message || 'Erro ao salvar promoção.');
     } finally {
       setIsSaving(false);
     }
@@ -110,15 +115,15 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
 
   const handleSend = async (promo: Promotion) => {
     if (promo.targetGroupIds.length === 0) {
-      alert('Por favor, selecione ao menos um canal de destino editando a promoção.');
+      alert('Esta promoção não tem canais de destino selecionados. Edite-a primeiro.');
       return;
     }
     setSendingId(promo.id);
     try {
       await api.sendToWebhook(promo);
-      alert('Promoção enviada para o webhook com sucesso!');
+      alert('Envio manual processado com sucesso!');
     } catch (error: any) {
-      alert(`Erro no Envio: ${error.message}\n\nNota: Se for erro 404 (GET), verifique se o fluxo do Webhook está ATIVO no servidor remoto.`);
+      alert(`Falha no envio: ${error.message}`);
     } finally {
       setSendingId(null);
     }
@@ -270,7 +275,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                   <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <Users size={14} className="text-indigo-600 dark:text-indigo-400" />
                     <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                      {promo.targetGroupIds.length === 0 ? 'Nenhum canal selecionado' : `${promo.targetGroupIds.length} ${promo.targetGroupIds.length === 1 ? 'canal' : 'canais'}`}
+                      {promo.targetGroupIds.length === 0 ? 'Sem canais' : `${promo.targetGroupIds.length} ${promo.targetGroupIds.length === 1 ? 'canal' : 'canais'}`}
                     </span>
                   </div>
 
@@ -361,7 +366,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                         />
                         <div className="flex flex-col">
                           <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-tighter group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">{group.name}</span>
-                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase opacity-70">{group.platform} - {group.apiIdentifier}</span>
+                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase opacity-70">{group.platform}</span>
                         </div>
                       </label>
                     )) : (
@@ -387,7 +392,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                 <div className="p-6 bg-indigo-50 dark:bg-indigo-950/20 rounded-[1.5rem] border border-indigo-100 dark:border-indigo-900/50 flex items-start gap-4">
                   <LayoutGrid className="text-indigo-600 dark:text-indigo-400 shrink-0" size={20} />
                   <p className="text-[11px] text-indigo-700 dark:text-indigo-300 font-bold leading-relaxed">
-                    <strong>Automação Ativa:</strong> Ao clicar em Finalizar, a oferta será salva e disparada imediatamente para os canais selecionados.
+                    <strong>Importante:</strong> Se estiver usando n8n/webhook local sem HTTPS, o navegador pode bloquear o envio. Certifique-se de usar uma URL segura para o Webhook.
                   </p>
                 </div>
 
