@@ -2,10 +2,10 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Plus, Smartphone, MessageSquare, 
-  Trash2, Edit3, Hash, LayoutGrid, CheckCircle2, Users, Loader2
+  Trash2, Edit3, Hash, LayoutGrid, CheckCircle2, Users, Loader2, AlertTriangle
 } from 'lucide-react';
 import { AppState, Group } from '../types';
-import { api } from '../services/supabase';
+import { api, addLog } from '../services/supabase';
 
 interface GroupsPageProps {
   state: AppState;
@@ -17,6 +17,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
   const [editingGroup, setEditingGroup] = useState<Partial<Group> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const filteredGroups = useMemo(() => {
     if (state.user?.role === 'ADMIN') return state.groups;
@@ -56,20 +57,29 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
     }
   };
 
-  const deleteGroup = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este grupo permanentemente?')) {
-      setDeletingId(id);
-      try {
-        await api.deleteGroup(id);
-        setState(prev => ({
-          ...prev,
-          groups: prev.groups.filter(g => g.id !== id)
-        }));
-      } catch (error: any) {
-        alert(`Erro ao excluir: ${error.message || 'Verifique as políticas de segurança no painel do Supabase.'}`);
-      } finally {
-        setDeletingId(null);
-      }
+  const handleDelete = async (id: string) => {
+    if (confirmDeleteId !== id) {
+      addLog('UI_PRE_CONFIRM_GROUP', 'CLICK', { id });
+      setConfirmDeleteId(id);
+      setTimeout(() => setConfirmDeleteId(null), 3000);
+      return;
+    }
+
+    addLog('UI_EXECUTE_DELETE_GROUP', 'CLICK', { id });
+    setDeletingId(id);
+    setConfirmDeleteId(null);
+    try {
+      await api.deleteGroup(id);
+      setState(prev => ({
+        ...prev,
+        groups: prev.groups.filter(g => g.id !== id)
+      }));
+      addLog('UI_DELETE_GROUP_SUCCESS', 'SUCCESS', id);
+    } catch (error: any) {
+      addLog('deleteGroup_UI_FAIL', 'ERROR', error);
+      alert(`Erro ao excluir: ${error.message}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -92,15 +102,17 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredGroups.map((group) => {
           const isDeleting = deletingId === group.id;
+          const isConfirming = confirmDeleteId === group.id;
+          
           return (
-            <div key={group.id} className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-200 transition-all group ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div key={group.id} className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-200 transition-all group ${isDeleting ? 'opacity-50 pointer-events-none ring-2 ring-red-100' : ''}`}>
               <div className="flex items-start justify-between mb-4">
                 <div className={`p-3 rounded-2xl ${group.platform === 'TELEGRAM' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
                   {group.platform === 'TELEGRAM' ? <MessageSquare size={24} /> : <Smartphone size={24} />}
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-1">
                   <button 
-                    disabled={isDeleting}
+                    disabled={isDeleting || isConfirming}
                     onClick={() => { setEditingGroup(group); setIsModalOpen(true); }}
                     className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
                   >
@@ -108,17 +120,30 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
                   </button>
                   <button 
                     disabled={isDeleting}
-                    onClick={() => deleteGroup(group.id)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                    onClick={() => handleDelete(group.id)}
+                    className={`p-2 rounded-lg transition-all flex items-center gap-1 font-bold text-[10px] ${
+                      isConfirming 
+                        ? 'bg-red-600 text-white animate-pulse' 
+                        : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                    }`}
                   >
-                    {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                    {isDeleting ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : isConfirming ? (
+                      <>
+                        <AlertTriangle size={14} />
+                        CONFIRMAR?
+                      </>
+                    ) : (
+                      <Trash2 size={18} />
+                    )}
                   </button>
                 </div>
               </div>
               <h4 className="text-lg font-bold text-slate-800 mb-1">{group.name}</h4>
               <div className="flex items-center gap-1.5 text-sm text-slate-500 mb-4">
                 <Hash size={14} />
-                <span className="font-mono">{group.apiIdentifier}</span>
+                <span className="font-mono text-[10px]">{group.apiIdentifier}</span>
               </div>
               
               <div className="space-y-3">
@@ -148,20 +173,6 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
             </div>
           );
         })}
-        {filteredGroups.length === 0 && (
-          <div className="col-span-full py-12 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-            <Users size={48} className="mx-auto text-slate-300 mb-4" />
-            <h3 className="text-lg font-bold text-slate-800">Nenhum grupo cadastrado</h3>
-            <p className="text-slate-500 mb-6">Conecte seu primeiro grupo para começar a enviar promoções</p>
-            <button 
-              onClick={() => { setEditingGroup({ platform: 'TELEGRAM', categories: [] }); setIsModalOpen(true); }}
-              className="inline-flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
-            >
-              <Plus size={20} />
-              Novo Grupo
-            </button>
-          </div>
-        )}
       </div>
 
       {isModalOpen && (
@@ -213,7 +224,6 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   ID do Chat / API* 
-                  <span className="ml-1 text-[10px] font-normal text-slate-400">(ID do grupo ou número)</span>
                 </label>
                 <input 
                   required
@@ -226,7 +236,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Categorias Permitidas</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Categorias Permitidas</label>
                 <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1">
                   {state.categories.map(cat => (
                     <label key={cat.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">

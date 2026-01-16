@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { Plus, Tag, Trash2, Edit3, Loader2 } from 'lucide-react';
+import { Plus, Tag, Trash2, Edit3, Loader2, AlertTriangle } from 'lucide-react';
 import { AppState, Category } from '../types';
-import { api } from '../services/supabase';
+import { api, addLog } from '../services/supabase';
 
 interface CategoriesPageProps {
   state: AppState;
@@ -13,6 +13,7 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
   const [newCat, setNewCat] = useState({ name: '', color: 'bg-indigo-500' });
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const colors = [
     'bg-indigo-500', 'bg-blue-500', 'bg-sky-500', 'bg-emerald-500', 
@@ -25,7 +26,6 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
     if (!newCat.name) return;
     
     setIsSaving(true);
-    // Usando crypto.randomUUID() para garantir compatibilidade com colunas do tipo UUID
     const cat: Category = {
       id: crypto.randomUUID(),
       name: newCat.name,
@@ -37,33 +37,36 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
       setState(prev => ({ ...prev, categories: [...prev.categories, cat] }));
       setNewCat({ name: '', color: 'bg-indigo-500' });
     } catch (error: any) {
-      alert(`Erro ao salvar categoria: ${error.message || 'Verifique sua conexão.'}`);
+      alert(`Erro ao salvar categoria: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta categoria? Promoções vinculadas a ela podem impedir a exclusão.')) return;
-    
+    // Se o usuário ainda não clicou uma vez para confirmar, ativa o estado de confirmação
+    if (confirmDeleteId !== id) {
+      addLog('UI_PRE_CONFIRM_CAT', 'CLICK', { id });
+      setConfirmDeleteId(id);
+      // Reseta a confirmação após 3 segundos se ele não clicar de novo
+      setTimeout(() => setConfirmDeleteId(null), 3000);
+      return;
+    }
+
+    addLog('UI_EXECUTE_DELETE_CAT', 'CLICK', { id });
     setDeletingId(id);
+    setConfirmDeleteId(null);
+
     try {
       await api.deleteCategory(id);
       setState(prev => ({ 
         ...prev, 
         categories: prev.categories.filter(c => c.id !== id) 
       }));
+      addLog('UI_DELETE_CAT_SUCCESS', 'SUCCESS', id);
     } catch (error: any) {
-      console.error('Falha na exclusão:', error);
-      let msg = "Erro ao excluir.";
-      
-      // Código 23503 é erro de Foreign Key (Chave Estrangeira)
-      if (error.code === "23503") {
-        msg = "Não é possível excluir esta categoria porque existem promoções ou grupos vinculados a ela.";
-      } else {
-        msg = error.message || "Erro desconhecido. Verifique o console do navegador.";
-      }
-      alert(msg);
+      addLog('handleDelete_UI_FAIL', 'ERROR', error);
+      alert(`Erro na exclusão: ${error.message}`);
     } finally {
       setDeletingId(null);
     }
@@ -98,22 +101,40 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {state.categories.map(cat => {
           const isDeleting = deletingId === cat.id;
+          const isConfirming = confirmDeleteId === cat.id;
+
           return (
             <div key={cat.id} className={`bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group transition-all hover:shadow-md ${isDeleting ? 'opacity-50' : ''}`}>
               <div className="flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-xl ${cat.color} flex items-center justify-center text-white shadow-lg shadow-black/5`}>
                   <Tag size={20} />
                 </div>
-                <span className="font-bold text-slate-700">{cat.name}</span>
+                <div>
+                  <span className="font-bold text-slate-700 block">{cat.name}</span>
+                  <span className="text-[10px] text-slate-300 font-mono">ID: {cat.id}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-2">
                 <button 
+                  type="button"
                   disabled={isDeleting} 
-                  onClick={() => handleDelete(cat.id)} 
-                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Excluir Categoria"
+                  onClick={(e) => { e.stopPropagation(); handleDelete(cat.id); }} 
+                  className={`p-3 rounded-lg transition-all flex items-center gap-2 font-bold text-xs ${
+                    isConfirming 
+                      ? 'bg-red-600 text-white animate-pulse' 
+                      : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                  }`}
                 >
-                  {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                  {isDeleting ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : isConfirming ? (
+                    <>
+                      <AlertTriangle size={16} />
+                      CONFIRMAR?
+                    </>
+                  ) : (
+                    <Trash2 size={20} />
+                  )}
                 </button>
               </div>
             </div>

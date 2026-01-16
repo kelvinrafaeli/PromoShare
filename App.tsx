@@ -8,11 +8,13 @@ import {
   LogOut, 
   Bell, 
   TrendingUp,
+  Terminal,
+  X
 } from 'lucide-react';
 
 import { User, AppState } from './types';
 import { INITIAL_CATEGORIES } from './constants';
-import { api } from './services/supabase';
+import { api, debugLogs, supabase, addLog } from './services/supabase';
 import PromotionsPage from './components/PromotionsPage';
 import GroupsPage from './components/GroupsPage';
 import CategoriesPage from './components/CategoriesPage';
@@ -27,26 +29,63 @@ const App: React.FC = () => {
     rules: []
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
 
-  // Fetch initial data from Supabase when user logs in
+  // 1. Escutar mudanças no estado de autenticação e carregar sessão inicial
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        addLog('App.init', 'INFO', 'Sessão ativa encontrada');
+        // Busca perfil local
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', session.user.email)
+          .single();
+
+        const userData: User = {
+          id: session.user.id,
+          name: profile?.name || session.user.email?.split('@')[0] || 'Usuário',
+          email: session.user.email || '',
+          role: (profile?.role as any) || 'USER',
+          avatar: profile?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}`
+        };
+
+        setState(prev => ({ ...prev, user: userData }));
+      }
+      setIsLoading(false);
+    };
+
+    checkSession();
+
+    // Listener para mudanças (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      addLog('auth.onAuthStateChange', 'INFO', { event });
+      if (event === 'SIGNED_OUT') {
+        setState(prev => ({ ...prev, user: null }));
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 2. Carregar dados quando o usuário logar
   useEffect(() => {
     if (state.user) {
       const loadData = async () => {
-        setIsLoading(true);
         try {
           const data = await api.fetchAll();
           setState(prev => ({
             ...prev,
             promotions: data.promotions,
             groups: data.groups,
-            // Only overwrite categories if we got some from DB, else keep defaults
             categories: data.categories.length > 0 ? data.categories : prev.categories
           }));
         } catch (error) {
-          console.error("Failed to load data from Supabase:", error);
-        } finally {
-          setIsLoading(false);
+          console.error("Failed to load data:", error);
         }
       };
       loadData();
@@ -57,9 +96,18 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, user }));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await api.logout();
     setState(prev => ({ ...prev, user: null }));
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <TrendingUp className="text-indigo-500 animate-pulse" size={48} />
+      </div>
+    );
+  }
 
   if (!state.user) {
     return <Login onLogin={handleLogin} />;
@@ -67,12 +115,19 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className="flex h-screen bg-slate-50">
+      <div className="flex h-screen bg-slate-50 relative">
         <Sidebar user={state.user} onLogout={handleLogout} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto relative">
           <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex items-center justify-between">
             <h1 className="text-xl font-bold text-slate-800">PromoShare</h1>
             <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setShowDebug(!showDebug)}
+                className={`p-2 rounded-lg transition-colors ${showDebug ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}`}
+                title="Abrir Logs de Depuração"
+              >
+                <Terminal size={20} />
+              </button>
               <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg relative">
                 <Bell size={20} />
                 <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
@@ -89,24 +144,57 @@ const App: React.FC = () => {
           </header>
 
           <div className="p-8">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-64 text-slate-400 gap-2">
-                <TrendingUp className="animate-bounce" />
-                <span>Carregando dados...</span>
-              </div>
-            ) : (
-              <Routes>
-                <Route path="/promotions" element={<PromotionsPage state={state} setState={setState} />} />
-                <Route path="/groups" element={<GroupsPage state={state} setState={setState} />} />
-                <Route path="/categories" element={<CategoriesPage state={state} setState={setState} />} />
-                <Route path="/" element={<Navigate to="/promotions" />} />
-                <Route path="*" element={<Navigate to="/promotions" />} />
-              </Routes>
-            )}
+            <Routes>
+              <Route path="/promotions" element={<PromotionsPage state={state} setState={setState} />} />
+              <Route path="/groups" element={<GroupsPage state={state} setState={setState} />} />
+              <Route path="/categories" element={<CategoriesPage state={state} setState={setState} />} />
+              <Route path="/" element={<Navigate to="/promotions" />} />
+              <Route path="*" element={<Navigate to="/promotions" />} />
+            </Routes>
           </div>
+
+          {showDebug && <DebugPanel onClose={() => setShowDebug(false)} />}
         </main>
       </div>
     </HashRouter>
+  );
+};
+
+const DebugPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const [logs, setLogs] = useState([...debugLogs]);
+
+  useEffect(() => {
+    const handleUpdate = () => setLogs([...debugLogs]);
+    window.addEventListener('supabase-log-update', handleUpdate);
+    return () => window.removeEventListener('supabase-log-update', handleUpdate);
+  }, []);
+
+  return (
+    <div className="fixed bottom-6 right-6 w-96 max-h-[500px] bg-slate-900 text-slate-300 rounded-2xl shadow-2xl border border-white/10 flex flex-col z-[100] overflow-hidden">
+      <div className="p-4 bg-slate-800 flex items-center justify-between border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <Terminal size={16} className="text-indigo-400" />
+          <span className="font-bold text-sm uppercase tracking-widest">Supabase Logs</span>
+        </div>
+        <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded transition-colors">
+          <X size={16} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 font-mono text-[10px]">
+        {logs.length === 0 && <p className="text-slate-600 p-4 text-center italic">Nenhuma atividade registrada.</p>}
+        {logs.map((log, i) => (
+          <div key={i} className={`p-2 rounded border ${log.status === 'ERROR' ? 'bg-red-950/30 border-red-900/50 text-red-300' : 'bg-slate-800/50 border-white/5'}`}>
+            <div className="flex justify-between mb-1">
+              <span className="font-bold">{log.method}</span>
+              <span className="opacity-40">{log.timestamp}</span>
+            </div>
+            <pre className="whitespace-pre-wrap opacity-80 overflow-x-auto">
+              {JSON.stringify(log.details, null, 2)}
+            </pre>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 
