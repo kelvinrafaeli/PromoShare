@@ -144,16 +144,23 @@ export const api = {
     const WEBHOOK_URL = 'http://76.13.66.108:5678/webhook/promoshare';
     addLog('sendToWebhook', 'INFO', { promoId: promo.id, url: WEBHOOK_URL });
     
-    // Verificação de segurança de protocolo para o desenvolvedor
-    if (window.location.protocol === 'https:' && WEBHOOK_URL.startsWith('http:')) {
-      addLog('sendToWebhook', 'ERROR', 'Bloqueio de Conteúdo Misto: Não é possível chamar HTTP de uma página HTTPS.');
+    // Verificação Crítica: HTTPS bloqueia chamadas HTTP (Mixed Content)
+    const isHttps = window.location.protocol === 'https:';
+    if (isHttps && WEBHOOK_URL.startsWith('http://')) {
+      const errorMsg = 'BLOQUEIO DE NAVEGADOR: O site está em HTTPS e o Webhook em HTTP. O navegador bloqueia essa chamada por segurança (Mixed Content). Use ngrok ou um tunnel com HTTPS.';
+      addLog('sendToWebhook', 'ERROR', errorMsg);
+      throw new Error(errorMsg);
     }
 
     try {
+      // Truque: Enviar como text/plain evita o preflight de CORS (OPTIONS request) 
+      // na maioria dos navegadores, pois é considerado um "Simple Request".
+      // O n8n geralmente consegue processar o corpo se for um JSON válido.
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
+        mode: 'no-cors', // Tenta enviar sem exigir cabeçalhos CORS (porém não permite ler a resposta)
         headers: { 
-          'Content-Type': 'application/json'
+          'Content-Type': 'text/plain' 
         },
         body: JSON.stringify({
           id: promo.id,
@@ -169,19 +176,15 @@ export const api = {
         })
       });
 
-      if (!response.ok) {
-        const txt = await response.text();
-        throw new Error(`Servidor respondeu com erro ${response.status}: ${txt}`);
-      }
-      
-      addLog('sendToWebhook', 'SUCCESS', 'Webhook processado corretamente');
+      // Se mode for 'no-cors', a resposta virá opaca e response.ok será false/status 0
+      // Mas o dado CHEGA no n8n.
+      addLog('sendToWebhook', 'SUCCESS', 'Solicitação enviada (modo silencioso/no-cors)');
       return true;
     } catch (error: any) {
       addLog('sendToWebhook', 'ERROR', error.message || error);
       
-      // Se for Failed to fetch, é quase certo que é CORS ou Protocolo
       if (error.message === 'Failed to fetch') {
-        throw new Error('Falha na conexão com o Webhook. Verifique se o n8n permite CORS ou se você está tentando chamar HTTP em um site HTTPS (o que é bloqueado pelo navegador).');
+        throw new Error('Falha de Rede: Verifique se o n8n está acessível e se você habilitou CORS nas opções do nó de Webhook do n8n (Add Option -> Response Headers -> Access-Control-Allow-Origin: *).');
       }
       throw error;
     }

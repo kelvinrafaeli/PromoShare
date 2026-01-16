@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Plus, Search, Filter, Send, Trash2, Edit3, 
   Eye, CheckCircle, Clock, Save, Smartphone, MessageSquare,
-  Users, Loader2, Calendar, ArrowRight, X, LayoutGrid
+  Users, Loader2, Calendar, ArrowRight, X, LayoutGrid, AlertTriangle
 } from 'lucide-react';
 import { AppState, Promotion, Group } from '../types';
 import { api, addLog } from '../services/supabase';
@@ -23,6 +23,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null); // Novo estado para confirmação
 
   const filteredPromos = useMemo(() => {
     let list = state.promotions;
@@ -97,7 +98,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
           addLog('Automation', 'SUCCESS', 'Promoção salva e enviada com sucesso.');
         } catch (webhookError: any) {
           console.error('Falha no webhook automático:', webhookError);
-          alert(`Oferta salva no banco, mas o envio para o Webhook falhou.\n\nERRO: ${webhookError.message}\n\nDICA: Se o erro for "Failed to fetch", você provavelmente está tentando chamar um endereço HTTP de um site HTTPS. Use HTTPS no seu Webhook (ngrok, tunnel, proxy, etc).`);
+          alert(`Oferta salva no banco, mas o envio para o Webhook falhou.\n\nERRO: ${webhookError.message}\n\nDICA: Se o erro for "Failed to fetch", você provavelmente está tentando chamar um endereço HTTP de um site HTTPS (o que é bloqueado pelo navegador). Use HTTPS no seu Webhook (ngrok, tunnel, proxy, etc).`);
         }
       } else {
         addLog('Automation', 'INFO', 'Nenhum canal selecionado, salvando apenas no banco.');
@@ -130,19 +131,35 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   };
 
   const deletePromo = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta promoção?')) {
-      setDeletingId(id);
-      try {
-        await api.deletePromotion(id);
-        setState(prev => ({
-          ...prev,
-          promotions: prev.promotions.filter(p => p.id !== id)
-        }));
-      } catch (error: any) {
-        alert(error.message || 'Erro ao excluir.');
-      } finally {
-        setDeletingId(null);
-      }
+    addLog('deletePromo', 'INFO', `Iniciando tentativa de exclusão da promoção ID: ${id}`);
+
+    // Implementa a lógica de confirmação em dois cliques
+    if (confirmDeleteId !== id) {
+      addLog('deletePromo', 'INFO', `Primeiro clique para exclusão de ID: ${id}. Aguardando confirmação.`);
+      setConfirmDeleteId(id);
+      setTimeout(() => setConfirmDeleteId(null), 3000); // Reseta o estado após 3 segundos
+      return;
+    }
+
+    addLog('deletePromo', 'INFO', `Usuário confirmou a exclusão para ID: ${id}`);
+    setDeletingId(id);
+    setConfirmDeleteId(null); // Limpa o estado de confirmação imediatamente
+
+    try {
+      addLog('deletePromo', 'INFO', `Chamando api.deletePromotion para ID: ${id}`);
+      await api.deletePromotion(id);
+      addLog('deletePromo', 'SUCCESS', `Promoção ID: ${id} excluída do banco de dados.`);
+      setState(prev => ({
+        ...prev,
+        promotions: prev.promotions.filter(p => p.id !== id)
+      }));
+      addLog('deletePromo', 'SUCCESS', `Estado da UI atualizado para exclusão da promoção ID: ${id}.`);
+    } catch (error: any) {
+      addLog('deletePromo', 'ERROR', `Erro ao excluir promoção ID: ${id}: ${error.message || error}`);
+      alert(`Erro ao excluir promoção: ${error.message || 'Erro desconhecido'}`);
+    } finally {
+      addLog('deletePromo', 'INFO', `Finalizado operação de exclusão para promoção ID: ${id}.`);
+      setDeletingId(null);
     }
   };
 
@@ -231,6 +248,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             const category = state.categories.find(c => c.name === promo.mainCategoryId || c.id === promo.mainCategoryId);
             const isDeleting = deletingId === promo.id;
             const isSending = sendingId === promo.id;
+            const isConfirming = confirmDeleteId === promo.id; // Verifica se está em estado de confirmação
             const creationDate = promo.createdAt ? new Date(promo.createdAt) : new Date();
 
             return (
@@ -287,8 +305,26 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                       <button onClick={() => { setEditingPromo(promo); setIsModalOpen(true); }} className="p-3 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/40 rounded-2xl transition-all active:scale-90" title="Editar Informações">
                         <Edit3 size={20} />
                       </button>
-                      <button disabled={isDeleting} onClick={() => deletePromo(promo.id)} className="p-3 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40 rounded-2xl transition-all active:scale-90" title="Excluir Oferta">
-                        {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
+                      <button 
+                        disabled={isDeleting} 
+                        onClick={() => deletePromo(promo.id)} 
+                        className={`p-3 rounded-2xl transition-all flex items-center justify-center gap-1.5 font-black text-[10px] uppercase tracking-tighter ${
+                          isConfirming 
+                            ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-600/30' 
+                            : 'text-slate-400 dark:text-slate-600 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                        }`} 
+                        title="Excluir Oferta"
+                      >
+                        {isDeleting ? (
+                          <Loader2 size={20} className="animate-spin" />
+                        ) : isConfirming ? (
+                          <>
+                            <AlertTriangle size={16} />
+                            Confirmar?
+                          </>
+                        ) : (
+                          <Trash2 size={20} />
+                        )}
                       </button>
                     </div>
                     <button 
