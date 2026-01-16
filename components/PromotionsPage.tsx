@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Plus, Search, Filter, Send, Trash2, Edit3, 
   Eye, CheckCircle, Clock, Save, Smartphone, MessageSquare,
-  Users, Loader2, Calendar, ArrowRight, X
+  Users, Loader2, Calendar, ArrowRight, X, LayoutGrid
 } from 'lucide-react';
 import { AppState, Promotion, Group } from '../types';
 import { api, addLog } from '../services/supabase';
@@ -313,6 +313,39 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                   <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Link da Oferta*</label>
                   <input required type="url" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white font-medium text-xs" placeholder="https://..." value={editingPromo?.link || ''} onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} />
                 </div>
+
+                {/* Seleção de Grupos de Destino */}
+                <div className="group">
+                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <Users size={14} className="text-indigo-500" />
+                    Canais de Destino*
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.5rem] border border-slate-100 dark:border-slate-700">
+                    {state.groups.map(group => (
+                      <label key={group.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800 shadow-sm">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600"
+                          checked={editingPromo?.targetGroupIds?.includes(group.id) || false}
+                          onChange={e => {
+                            const current = editingPromo?.targetGroupIds || [];
+                            const updated = e.target.checked 
+                              ? [...current, group.id] 
+                              : current.filter(id => id !== group.id);
+                            setEditingPromo(prev => ({ ...prev, targetGroupIds: updated }));
+                          }}
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-tighter">{group.name}</span>
+                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase opacity-70">{group.platform}</span>
+                        </div>
+                      </label>
+                    ))}
+                    {state.groups.length === 0 && (
+                      <p className="text-center text-[10px] text-slate-400 uppercase font-black py-4">Nenhum grupo cadastrado</p>
+                    )}
+                  </div>
+                </div>
               </div>
               
               <div className="space-y-8">
@@ -327,6 +360,14 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                     {state.categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
+                
+                <div className="p-6 bg-indigo-50 dark:bg-indigo-950/20 rounded-[1.5rem] border border-indigo-100 dark:border-indigo-900/50 flex items-start gap-4">
+                  <LayoutGrid className="text-indigo-600 dark:text-indigo-400 shrink-0" size={20} />
+                  <p className="text-[11px] text-indigo-700 dark:text-indigo-300 font-bold leading-relaxed">
+                    <strong>Sugestão:</strong> Selecione os canais onde deseja que esta oferta seja distribuída imediatamente após salvar ou ao clicar em enviar manualmente.
+                  </p>
+                </div>
+
                 <div className="pt-10 flex justify-end gap-5 border-t border-slate-100 dark:border-slate-800">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-10 py-4 text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl transition-all">Descartar</button>
                   <button type="submit" disabled={isSaving} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-3xl hover:bg-indigo-700 flex items-center gap-4 shadow-2xl shadow-indigo-600/40 transition-all active:scale-95 disabled:opacity-50">
