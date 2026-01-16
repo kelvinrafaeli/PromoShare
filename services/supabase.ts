@@ -141,26 +141,19 @@ export const api = {
   },
 
   async sendToWebhook(promo: Promotion) {
-    const WEBHOOK_URL = 'http://76.13.66.108:5678/webhook/promoshare';
+    // Nova URL em HTTPS via sslip.io
+    const WEBHOOK_URL = 'https://76.13.66.108.sslip.io/webhook/promoshare';
     addLog('sendToWebhook', 'INFO', { promoId: promo.id, url: WEBHOOK_URL });
     
-    // Verificação Crítica: HTTPS bloqueia chamadas HTTP (Mixed Content)
-    const isHttps = window.location.protocol === 'https:';
-    if (isHttps && WEBHOOK_URL.startsWith('http://')) {
-      const errorMsg = 'BLOQUEIO DE NAVEGADOR: O site está em HTTPS e o Webhook em HTTP. O navegador bloqueia essa chamada por segurança (Mixed Content). Use ngrok ou um tunnel com HTTPS.';
-      addLog('sendToWebhook', 'ERROR', errorMsg);
-      throw new Error(errorMsg);
-    }
-
     try {
-      // Truque: Enviar como text/plain evita o preflight de CORS (OPTIONS request) 
-      // na maioria dos navegadores, pois é considerado um "Simple Request".
-      // O n8n geralmente consegue processar o corpo se for um JSON válido.
+      // Agora que usamos HTTPS, podemos tentar enviar como application/json
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
-        mode: 'no-cors', // Tenta enviar sem exigir cabeçalhos CORS (porém não permite ler a resposta)
+        // 'no-cors' envia o dado mas impede que leiamos a resposta se o n8n não tiver CORS habilitado.
+        // Se você habilitou CORS no n8n (Access-Control-Allow-Origin: *), pode remover o 'no-cors'.
+        mode: 'no-cors', 
         headers: { 
-          'Content-Type': 'text/plain' 
+          'Content-Type': 'application/json' 
         },
         body: JSON.stringify({
           id: promo.id,
@@ -176,15 +169,13 @@ export const api = {
         })
       });
 
-      // Se mode for 'no-cors', a resposta virá opaca e response.ok será false/status 0
-      // Mas o dado CHEGA no n8n.
-      addLog('sendToWebhook', 'SUCCESS', 'Solicitação enviada (modo silencioso/no-cors)');
+      addLog('sendToWebhook', 'SUCCESS', 'Dados enviados para o n8n com sucesso!');
       return true;
     } catch (error: any) {
       addLog('sendToWebhook', 'ERROR', error.message || error);
       
       if (error.message === 'Failed to fetch') {
-        throw new Error('Falha de Rede: Verifique se o n8n está acessível e se você habilitou CORS nas opções do nó de Webhook do n8n (Add Option -> Response Headers -> Access-Control-Allow-Origin: *).');
+        throw new Error('Falha de Rede: Verifique se o n8n está acessível. Se o erro persistir, certifique-se de habilitar CORS nas opções do nó de Webhook do n8n (Add Option -> Response Headers -> Access-Control-Allow-Origin: *).');
       }
       throw error;
     }
