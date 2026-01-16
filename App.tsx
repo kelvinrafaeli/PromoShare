@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 
 import { User, AppState } from './types';
-import { INITIAL_CATEGORIES } from './constants';
 import { api, debugLogs, supabase, addLog } from './services/supabase';
 import PromotionsPage from './components/PromotionsPage';
 import GroupsPage from './components/GroupsPage';
@@ -25,7 +24,7 @@ const App: React.FC = () => {
     user: null,
     promotions: [],
     groups: [],
-    categories: INITIAL_CATEGORIES,
+    categories: [],
     rules: []
   });
 
@@ -82,10 +81,11 @@ const App: React.FC = () => {
             ...prev,
             promotions: data.promotions,
             groups: data.groups,
-            categories: data.categories.length > 0 ? data.categories : prev.categories
+            categories: data.categories // Agora só usa o que vem do banco
           }));
         } catch (error) {
           console.error("Failed to load data:", error);
+          addLog('loadData', 'ERROR', error);
         }
       };
       loadData();
