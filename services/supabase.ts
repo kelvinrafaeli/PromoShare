@@ -35,7 +35,7 @@ const handleSupabaseError = (error: any, method: string) => {
 // --- Mappers para a tabela PUBLIC.OFFERS ---
 
 const mapPromoFromDB = (p: any): Promotion => ({
-  id: p.id.toString(), // Converte BigInt para String para a UI
+  id: p.id.toString(),
   title: p.title || '',
   price: parseFloat(p.price) || 0,
   link: p.link || '',
@@ -62,7 +62,6 @@ const mapPromoToDB = (p: Promotion) => {
     category: p.mainCategoryId,
   };
 
-  // Se o ID for numérico (ou seja, já existe no banco), incluímos para o upsert
   const numericId = Number(p.id);
   if (!isNaN(numericId)) {
     payload.id = numericId;
@@ -118,8 +117,6 @@ export const api = {
 
   async savePromotion(promo: Promotion): Promise<Promotion> {
     addLog('savePromotion', 'INFO', { title: promo.title });
-    
-    // Usamos select().single() para obter a linha inserida/atualizada
     const { data, error } = await supabase
       .from('offers')
       .upsert(mapPromoToDB(promo))
@@ -127,7 +124,6 @@ export const api = {
       .single();
 
     if (error) throw handleSupabaseError(error, 'savePromotion');
-    
     addLog('savePromotion', 'SUCCESS', 'Promoção salva com sucesso');
     return mapPromoFromDB(data);
   },
@@ -135,10 +131,34 @@ export const api = {
   async deletePromotion(id: string) {
     const numericId = Number(id);
     if (isNaN(numericId)) throw new Error('ID inválido para exclusão.');
-    
     const { error } = await supabase.from('offers').delete().eq('id', numericId);
     if (error) throw handleSupabaseError(error, 'deletePromotion');
     addLog('deletePromotion', 'SUCCESS', id);
+  },
+
+  async sendToWebhook(promo: Promotion) {
+    const WEBHOOK_URL = 'http://localhost:5678/webhook-test/promoshare';
+    addLog('sendToWebhook', 'INFO', { promoId: promo.id, url: WEBHOOK_URL });
+    
+    try {
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...promo,
+          sent_at_webhook: new Date().toISOString(),
+          app_source: 'PromoShare Web'
+        })
+      });
+
+      if (!response.ok) throw new Error(`Status: ${response.status}`);
+      
+      addLog('sendToWebhook', 'SUCCESS', 'Dados enviados para o webhook com sucesso');
+      return true;
+    } catch (error: any) {
+      addLog('sendToWebhook', 'ERROR', error);
+      throw error;
+    }
   },
 
   async saveGroup(group: Group) {

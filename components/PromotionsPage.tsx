@@ -21,6 +21,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const [editingPromo, setEditingPromo] = useState<Partial<Promotion> | null>(null);
   const [previewPromo, setPreviewPromo] = useState<Promotion | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [sendingId, setSendingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filteredPromos = useMemo(() => {
@@ -90,6 +91,18 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       alert(error.message || 'Erro ao salvar promoção.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSend = async (promo: Promotion) => {
+    setSendingId(promo.id);
+    try {
+      await api.sendToWebhook(promo);
+      alert('Promoção enviada para o webhook com sucesso!');
+    } catch (error: any) {
+      alert(`Erro ao enviar para webhook: ${error.message}. Certifique-se que o serviço local está rodando.`);
+    } finally {
+      setSendingId(null);
     }
   };
 
@@ -188,12 +201,13 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
               <Search className="text-slate-200 dark:text-slate-700" size={48} />
             </div>
             <h3 className="text-slate-800 dark:text-slate-200 font-black text-xl tracking-tight">Nenhuma oferta por aqui</h3>
-            <p className="text-slate-400 dark:text-slate-500 text-sm max-w-xs mx-auto mt-3 font-medium">Não encontramos resultados para sua busca ou período selecionado.</p>
+            <p className="text-slate-400 dark:text-slate-500 text-sm max-w-xs mx-auto mt-3 font-medium text-center px-4">Não encontramos resultados para sua busca ou período selecionado.</p>
           </div>
         ) : (
           filteredPromos.map((promo) => {
             const category = state.categories.find(c => c.name === promo.mainCategoryId || c.id === promo.mainCategoryId);
             const isDeleting = deletingId === promo.id;
+            const isSending = sendingId === promo.id;
             const creationDate = promo.createdAt ? new Date(promo.createdAt) : new Date();
 
             return (
@@ -237,15 +251,23 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
 
                   <div className="pt-5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex gap-1.5">
-                      <button onClick={() => setPreviewPromo(promo)} className="p-3 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-2xl transition-all active:scale-90" title="Ver Preview Mobile"><Eye size={20} /></button>
-                      <button onClick={() => { setEditingPromo(promo); setIsModalOpen(true); }} className="p-3 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/40 rounded-2xl transition-all active:scale-90" title="Editar Informações"><Edit3 size={20} /></button>
+                      <button onClick={() => setPreviewPromo(promo)} className="p-3 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-2xl transition-all active:scale-90" title="Ver Preview Mobile">
+                        <Eye size={20} />
+                      </button>
+                      <button onClick={() => { setEditingPromo(promo); setIsModalOpen(true); }} className="p-3 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/40 rounded-2xl transition-all active:scale-90" title="Editar Informações">
+                        <Edit3 size={20} />
+                      </button>
                       <button disabled={isDeleting} onClick={() => deletePromo(promo.id)} className="p-3 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40 rounded-2xl transition-all active:scale-90" title="Excluir Oferta">
                         {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
                       </button>
                     </div>
-                    <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl text-[11px] font-black hover:bg-indigo-600 dark:hover:bg-indigo-700 transition-all shadow-xl active:scale-95 uppercase tracking-widest min-w-[100px]">
-                      <Send size={16} />
-                      Enviar
+                    <button 
+                      onClick={() => handleSend(promo)}
+                      disabled={isSending}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl text-[11px] font-black hover:bg-indigo-600 dark:hover:bg-indigo-700 transition-all shadow-xl active:scale-95 uppercase tracking-widest min-w-[120px]"
+                    >
+                      {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      {isSending ? 'Enviando' : 'Enviar'}
                     </button>
                   </div>
                 </div>
@@ -255,7 +277,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
         )}
       </div>
 
-      {/* Modais herdam as melhorias de tema via CSS global, mas reforcei classes explícitas */}
+      {/* Modais */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-800">
