@@ -105,13 +105,25 @@ export const api = {
   },
 
   async deletePromotion(id: string) {
-    // Importante: eq('id', id) precisa que o ID seja exatamente igual ao do banco
-    const { error, count } = await supabase.from('promotions').delete().eq('id', id);
+    console.log('Iniciando exclusão da promoção:', id);
+    const { error, data } = await supabase
+      .from('promotions')
+      .delete()
+      .eq('id', id)
+      .select(); // Força o retorno para confirmar se deletou
+
     if (error) {
-      console.error('Erro Supabase Delete Promo:', error);
+      console.error('Erro Supabase ao deletar promoção:', error);
       throw error;
     }
-    return count;
+    
+    if (!data || data.length === 0) {
+      console.warn('Nenhum registro deletado. O ID existe ou a política RLS permite DELETE?');
+      throw new Error('O banco de dados não removeu o registro. Verifique as permissões de DELETE no Supabase.');
+    }
+    
+    console.log('Promoção deletada com sucesso:', data);
+    return data;
   },
 
   async saveGroup(group: Group) {
@@ -120,12 +132,23 @@ export const api = {
   },
 
   async deleteGroup(id: string) {
-    const { error, count } = await supabase.from('groups').delete().eq('id', id);
+    console.log('Iniciando exclusão do grupo:', id);
+    const { error, data } = await supabase
+      .from('groups')
+      .delete()
+      .eq('id', id)
+      .select();
+
     if (error) {
-      console.error('Erro Supabase Delete Group:', error);
+      console.error('Erro Supabase ao deletar grupo:', error);
       throw error;
     }
-    return count;
+
+    if (!data || data.length === 0) {
+      throw new Error('O banco de dados não removeu o grupo. Verifique as políticas RLS.');
+    }
+
+    return data;
   },
 
   async saveCategory(category: Category) {
@@ -138,11 +161,22 @@ export const api = {
   },
 
   async deleteCategory(id: string) {
-    const { error, count } = await supabase.from('categories').delete().eq('id', id);
+    console.log('Iniciando exclusão da categoria:', id);
+    const { error, data } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id)
+      .select();
+
     if (error) {
-      console.error('Erro Supabase Delete Category:', error);
+      console.error('Erro Supabase ao deletar categoria:', error);
       throw error;
     }
-    return count;
+
+    if (!data || data.length === 0) {
+      throw new Error('O banco de dados não removeu a categoria. Verifique se há promoções vinculadas a ela.');
+    }
+
+    return data;
   }
 };
