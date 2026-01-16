@@ -9,7 +9,9 @@ import {
   Bell, 
   TrendingUp,
   Terminal,
-  X
+  X,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 import { User, AppState } from './types';
@@ -30,15 +32,26 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme');
+    return (saved as 'light' | 'dark') || 'light';
+  });
 
-  // 1. Escutar mudanças no estado de autenticação e carregar sessão inicial
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user) {
         addLog('App.init', 'INFO', 'Sessão ativa encontrada');
-        // Busca perfil local
         const { data: profile } = await supabase
           .from('users')
           .select('*')
@@ -60,9 +73,7 @@ const App: React.FC = () => {
 
     checkSession();
 
-    // Listener para mudanças (login/logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      addLog('auth.onAuthStateChange', 'INFO', { event });
       if (event === 'SIGNED_OUT') {
         setState(prev => ({ ...prev, user: null }));
       }
@@ -71,7 +82,6 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Carregar dados quando o usuário logar
   useEffect(() => {
     if (state.user) {
       const loadData = async () => {
@@ -81,7 +91,7 @@ const App: React.FC = () => {
             ...prev,
             promotions: data.promotions,
             groups: data.groups,
-            categories: data.categories // Agora só usa o que vem do banco
+            categories: data.categories
           }));
         } catch (error) {
           console.error("Failed to load data:", error);
@@ -101,6 +111,8 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, user: null }));
   };
 
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -115,35 +127,42 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className="flex h-screen bg-slate-50 relative">
+      <div className={`flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300`}>
         <Sidebar user={state.user} onLogout={handleLogout} />
         <main className="flex-1 overflow-y-auto relative">
-          <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex items-center justify-between">
-            <h1 className="text-xl font-bold text-slate-800">PromoShare</h1>
-            <div className="flex items-center gap-4">
+          <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white">PromoShare</h1>
+            <div className="flex items-center gap-2 md:gap-4">
+              <button 
+                onClick={toggleTheme}
+                className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                title="Alternar Tema"
+              >
+                {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+              </button>
               <button 
                 onClick={() => setShowDebug(!showDebug)}
-                className={`p-2 rounded-lg transition-colors ${showDebug ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}`}
+                className={`p-2 rounded-lg transition-colors ${showDebug ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 title="Abrir Logs de Depuração"
               >
                 <Terminal size={20} />
               </button>
-              <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg relative">
+              <button className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg relative">
                 <Bell size={20} />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
               </button>
-              <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
+              <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 md:mx-2"></div>
               <div className="flex items-center gap-3">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-semibold text-slate-700">{state.user.name}</p>
-                  <p className="text-xs text-slate-500 capitalize">{state.user.role.toLowerCase()}</p>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{state.user.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{state.user.role.toLowerCase()}</p>
                 </div>
-                <img src={state.user.avatar} className="w-10 h-10 rounded-full border-2 border-slate-100 object-cover" alt="Avatar" />
+                <img src={state.user.avatar} className="w-10 h-10 rounded-full border-2 border-slate-100 dark:border-slate-800 object-cover" alt="Avatar" />
               </div>
             </div>
           </header>
 
-          <div className="p-8">
+          <div className="p-4 md:p-8">
             <Routes>
               <Route path="/promotions" element={<PromotionsPage state={state} setState={setState} />} />
               <Route path="/groups" element={<GroupsPage state={state} setState={setState} />} />
@@ -211,7 +230,7 @@ const Sidebar: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogou
   const filteredNav = navItems.filter(item => !item.adminOnly || user.role === 'ADMIN');
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col hidden lg:flex">
+    <aside className="w-64 bg-slate-900 dark:bg-black text-slate-300 flex flex-col hidden lg:flex border-r border-slate-800">
       <div className="p-6">
         <div className="flex items-center gap-2 text-white mb-8">
           <div className="bg-indigo-600 p-2 rounded-lg">
@@ -227,7 +246,7 @@ const Sidebar: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogou
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive(item.path) 
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' 
-                  : 'hover:bg-slate-800 hover:text-white'
+                  : 'hover:bg-slate-800 hover:text-white dark:hover:bg-slate-900'
               }`}
             >
               <item.icon size={20} />
@@ -239,7 +258,7 @@ const Sidebar: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogou
       <div className="mt-auto p-6 border-t border-slate-800">
         <button
           onClick={onLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 dark:hover:bg-slate-900 rounded-lg transition-colors"
         >
           <LogOut size={20} />
           <span className="font-medium text-sm">Sair</span>

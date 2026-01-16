@@ -44,11 +44,9 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
   };
 
   const handleDelete = async (id: string) => {
-    // Se o usuário ainda não clicou uma vez para confirmar, ativa o estado de confirmação
     if (confirmDeleteId !== id) {
       addLog('UI_PRE_CONFIRM_CAT', 'CLICK', { id });
       setConfirmDeleteId(id);
-      // Reseta a confirmação após 3 segundos se ele não clicar de novo
       setTimeout(() => setConfirmDeleteId(null), 3000);
       return;
     }
@@ -73,31 +71,38 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div>
-        <h2 className="text-2xl font-bold text-slate-800">Gerenciar Categorias</h2>
-        <p className="text-slate-500">Painel exclusivo do Administrador</p>
+        <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Gerenciar Categorias</h2>
+        <p className="text-slate-500 dark:text-slate-400 font-medium">Painel exclusivo para organização de nichos e grupos</p>
       </div>
 
-      <form onSubmit={handleAdd} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6 items-end">
-        <div className="flex-1 w-full">
-          <label className="block text-sm font-bold text-slate-700 mb-2">Nome da Categoria</label>
-          <input required type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="Ex: Eletrônicos" value={newCat.name} onChange={e => setNewCat(prev => ({ ...prev, name: e.target.value }))} />
+      <form onSubmit={handleAdd} className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-6 items-end transition-colors">
+        <div className="flex-1 w-full group">
+          <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 group-focus-within:text-indigo-500 transition-colors">Nome da Categoria</label>
+          <input 
+            required 
+            type="text" 
+            className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold dark:text-white" 
+            placeholder="Ex: Eletrônicos" 
+            value={newCat.name} 
+            onChange={e => setNewCat(prev => ({ ...prev, name: e.target.value }))} 
+          />
         </div>
         <div className="w-full md:w-64">
-          <label className="block text-sm font-bold text-slate-700 mb-2">Selecione a Cor</label>
-          <div className="flex flex-wrap gap-2">
+          <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Estética / Cor</label>
+          <div className="flex flex-wrap gap-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700">
             {colors.map(c => (
               <button 
                 key={c} 
                 type="button" 
                 onClick={() => setNewCat(prev => ({ ...prev, color: c }))} 
-                className={`w-8 h-8 rounded-lg transition-all ${c} ${newCat.color === c ? 'scale-110 ring-2 ring-indigo-600 ring-offset-2 shadow-md' : 'opacity-60 hover:opacity-100'}`} 
+                className={`w-7 h-7 rounded-lg transition-all ${c} ${newCat.color === c ? 'scale-110 ring-2 ring-indigo-600 ring-offset-2 dark:ring-offset-slate-900 shadow-md' : 'opacity-40 hover:opacity-100'}`} 
               />
             ))}
           </div>
         </div>
-        <button type="submit" disabled={isSaving} className="w-full md:w-auto px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 active:scale-95 transition-transform disabled:opacity-50 h-[46px]">
+        <button type="submit" disabled={isSaving} className="w-full md:w-auto px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-indigo-600/30 active:scale-95 transition-all disabled:opacity-50">
           {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
           Adicionar
         </button>
@@ -109,13 +114,14 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
           const isConfirming = confirmDeleteId === cat.id;
 
           return (
-            <div key={cat.id} className={`bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group transition-all hover:shadow-md ${isDeleting ? 'opacity-50' : ''}`}>
+            <div key={cat.id} className={`bg-white dark:bg-slate-900 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group transition-all hover:shadow-md hover:border-indigo-100 dark:hover:border-indigo-900 ${isDeleting ? 'opacity-50 grayscale' : ''}`}>
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl ${cat.color} flex items-center justify-center text-white shadow-lg shadow-black/5`}>
-                  <Tag size={24} />
+                <div className={`w-12 h-12 rounded-2xl ${cat.color} flex items-center justify-center text-white shadow-lg shadow-black/10 border border-white/20 transition-transform group-hover:scale-110 duration-500`}>
+                  <Tag size={22} />
                 </div>
                 <div>
-                  <span className="font-bold text-slate-800 text-lg block">{cat.name}</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-100 text-lg block tracking-tight">{cat.name}</span>
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Nicho Ativo</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -123,10 +129,10 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
                   type="button"
                   disabled={isDeleting} 
                   onClick={(e) => { e.stopPropagation(); handleDelete(cat.id); }} 
-                  className={`p-3 rounded-xl transition-all flex items-center gap-2 font-bold text-xs ${
+                  className={`p-3 rounded-xl transition-all flex items-center gap-2 font-black text-[10px] uppercase tracking-tighter ${
                     isConfirming 
-                      ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-600/20' 
-                      : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                      ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-600/30' 
+                      : 'text-slate-400 dark:text-slate-600 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                   }`}
                 >
                   {isDeleting ? (
@@ -134,7 +140,7 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
                   ) : isConfirming ? (
                     <>
                       <AlertTriangle size={16} />
-                      CONFIRMAR?
+                      Confirmar?
                     </>
                   ) : (
                     <Trash2 size={20} />

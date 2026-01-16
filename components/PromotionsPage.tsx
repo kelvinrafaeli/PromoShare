@@ -26,27 +26,22 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const filteredPromos = useMemo(() => {
     let list = state.promotions;
     
-    // Filtro por permissão (Admin vê tudo, User vê as suas)
     if (state.user?.role !== 'ADMIN') {
       list = list.filter(p => p.ownerId === state.user?.id);
     }
     
-    // Filtro por busca de texto
     if (searchTerm) {
       list = list.filter(p => 
         p.title.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filtro por intervalo de datas
     if (startDate || endDate) {
       list = list.filter(p => {
         if (!p.createdAt) return false;
-        const pDate = p.createdAt.split('T')[0]; // Pega apenas YYYY-MM-DD
-        
+        const pDate = p.createdAt.split('T')[0];
         const afterStart = !startDate || pDate >= startDate;
         const beforeEnd = !endDate || pDate <= endDate;
-        
         return afterStart && beforeEnd;
       });
     }
@@ -121,53 +116,53 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       {/* Filtros e Busca */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm space-y-5 transition-colors">
         <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full lg:flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <div className="relative w-full lg:flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 transition-colors" size={20} />
             <input 
               type="text" 
-              placeholder="Buscar pelo título da promoção..." 
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
+              placeholder="Pesquisar promoções por título..." 
+              className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-700 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-bold dark:text-white"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <button 
             onClick={() => { setEditingPromo({ mainCategoryId: state.categories[0]?.name || '', targetGroupIds: [] }); setIsModalOpen(true); }}
-            className="w-full lg:w-auto flex items-center justify-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all font-bold shadow-lg shadow-indigo-600/25 active:scale-95"
+            className="w-full lg:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all font-black uppercase tracking-widest shadow-xl shadow-indigo-600/30 active:scale-95 shrink-0"
           >
-            <Plus size={20} />
+            <Plus size={22} />
             Nova Promoção
           </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4 pt-2 border-t border-slate-50">
-          <div className="flex items-center gap-2 text-slate-500 min-w-max">
-            <Filter size={16} className="text-indigo-500" />
-            <span className="text-xs font-bold uppercase tracking-wider">Filtrar por Período:</span>
+        <div className="flex flex-col sm:flex-row items-center gap-4 pt-5 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 min-w-max">
+            <Filter size={16} className="text-indigo-600 dark:text-indigo-400" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Filtrar por Cadastro</span>
           </div>
           
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-44">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+            <div className="relative flex-1 sm:w-44 group shrink-0">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-600 dark:text-indigo-400 group-focus-within:text-indigo-700 transition-colors pointer-events-none z-10" size={16} />
               <input 
                 type="date" 
                 title="Data Inicial"
-                className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs appearance-none"
+                className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-[11px] appearance-none dark:text-white font-bold"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
-            <ArrowRight size={14} className="text-slate-300 shrink-0" />
-            <div className="relative flex-1 sm:w-44">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+            <ArrowRight size={14} className="text-slate-300 dark:text-slate-600 shrink-0" />
+            <div className="relative flex-1 sm:w-44 group shrink-0">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-600 dark:text-indigo-400 group-focus-within:text-indigo-700 transition-colors pointer-events-none z-10" size={16} />
               <input 
                 type="date" 
                 title="Data Final"
-                className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs appearance-none"
+                className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-[11px] appearance-none dark:text-white font-bold"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
@@ -175,8 +170,8 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             {(startDate || endDate) && (
               <button 
                 onClick={clearDateFilter}
-                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                title="Limpar filtros de data"
+                className="p-2.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors shrink-0"
+                title="Limpar filtros"
               >
                 <X size={18} />
               </button>
@@ -188,12 +183,12 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       {/* Grid de Promoções */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredPromos.length === 0 ? (
-          <div className="col-span-full py-20 text-center bg-white rounded-[2rem] border border-slate-100 shadow-sm">
-            <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Search className="text-slate-200" size={40} />
+          <div className="col-span-full py-24 text-center bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+            <div className="bg-slate-50 dark:bg-slate-800 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+              <Search className="text-slate-200 dark:text-slate-700" size={48} />
             </div>
-            <h3 className="text-slate-800 font-bold text-lg">Nenhuma oferta encontrada</h3>
-            <p className="text-slate-400 text-sm max-w-xs mx-auto mt-2">Tente ajustar seus filtros ou termos de busca para encontrar o que procura.</p>
+            <h3 className="text-slate-800 dark:text-slate-200 font-black text-xl tracking-tight">Nenhuma oferta por aqui</h3>
+            <p className="text-slate-400 dark:text-slate-500 text-sm max-w-xs mx-auto mt-3 font-medium">Não encontramos resultados para sua busca ou período selecionado.</p>
           </div>
         ) : (
           filteredPromos.map((promo) => {
@@ -202,54 +197,54 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             const creationDate = promo.createdAt ? new Date(promo.createdAt) : new Date();
 
             return (
-              <div key={promo.id} className={`bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 group transition-all duration-300 hover:shadow-xl hover:translate-y-[-4px] ${isDeleting ? 'opacity-50 pointer-events-none scale-95' : ''}`}>
-                <div className="relative h-52 overflow-hidden bg-slate-50">
-                  <img src={promo.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={promo.title} />
+              <div key={promo.id} className={`bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 group transition-all duration-500 hover:shadow-2xl hover:translate-y-[-8px] hover:border-indigo-100 dark:hover:border-indigo-900 ${isDeleting ? 'opacity-50 pointer-events-none scale-95' : ''}`}>
+                <div className="relative h-60 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <img src={promo.imageUrl} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" alt={promo.title} />
                   
-                  {/* Overlay Gradiente */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
                   
-                  {/* Badge de Categoria */}
-                  <div className="absolute top-4 left-4">
-                    <span className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest text-white shadow-lg backdrop-blur-md ${category?.color || 'bg-slate-500/80'}`}>
+                  <div className="absolute top-5 left-5">
+                    <span className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl backdrop-blur-md border border-white/20 ${category?.color || 'bg-slate-600/80'}`}>
                       {category?.name || 'Geral'}
                     </span>
                   </div>
 
-                  {/* Badge de Data - Sempre Visível */}
-                  <div className="absolute bottom-4 right-4 z-10">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-xl text-slate-800 text-[10px] font-bold shadow-sm border border-white/20">
-                      <Clock size={12} className="text-indigo-500" />
-                      {creationDate.toLocaleDateString('pt-BR')}
+                  <div className="absolute bottom-5 left-5 z-10 flex flex-col gap-1.5">
+                    <span className="text-[9px] font-black text-white/80 uppercase tracking-widest drop-shadow-md">Data do Post</span>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-2xl text-[11px] font-black shadow-2xl border border-white/20">
+                      <Clock size={14} className="animate-pulse" />
+                      {creationDate.toLocaleDateString('pt-BR')} 
+                      <span className="opacity-50 mx-1">|</span>
+                      {creationDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 </div>
 
-                <div className="p-6 space-y-4">
+                <div className="p-7 space-y-6">
                   <div>
-                    <h4 className="font-bold text-slate-800 line-clamp-2 leading-tight h-10 group-hover:text-indigo-600 transition-colors">{promo.title}</h4>
-                    <div className="flex items-center justify-between mt-4">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100 line-clamp-2 leading-tight h-10 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300 tracking-tight">{promo.title}</h4>
+                    <div className="flex items-center justify-between mt-6">
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Preço Oferta</span>
-                        <p className="text-2xl font-black text-slate-900 tracking-tight">
-                          <span className="text-sm font-bold mr-0.5">R$</span> 
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Preço Promo</span>
+                        <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
+                          <span className="text-base font-extrabold mr-1">R$</span> 
                           {promo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </p>
                       </div>
-                      <span className="text-[9px] font-mono font-bold text-slate-300 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">ID: {promo.id}</span>
+                      <span className="text-[10px] font-mono font-black text-slate-400 dark:text-slate-600 bg-slate-50 dark:bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-100 dark:border-slate-700 shadow-inner">#{promo.id}</span>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-50 flex items-center justify-between gap-2">
-                    <div className="flex gap-1">
-                      <button onClick={() => setPreviewPromo(promo)} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Ver Preview Mobile"><Eye size={18} /></button>
-                      <button onClick={() => { setEditingPromo(promo); setIsModalOpen(true); }} className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title="Editar Informações"><Edit3 size={18} /></button>
-                      <button disabled={isDeleting} onClick={() => deletePromo(promo.id)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Excluir Oferta">
-                        {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                  <div className="pt-5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setPreviewPromo(promo)} className="p-3 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-2xl transition-all active:scale-90" title="Ver Preview Mobile"><Eye size={20} /></button>
+                      <button onClick={() => { setEditingPromo(promo); setIsModalOpen(true); }} className="p-3 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/40 rounded-2xl transition-all active:scale-90" title="Editar Informações"><Edit3 size={20} /></button>
+                      <button disabled={isDeleting} onClick={() => deletePromo(promo.id)} className="p-3 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40 rounded-2xl transition-all active:scale-90" title="Excluir Oferta">
+                        {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
                       </button>
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-indigo-600 transition-all shadow-md active:scale-95">
-                      <Send size={14} />
+                    <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl text-[11px] font-black hover:bg-indigo-600 dark:hover:bg-indigo-700 transition-all shadow-xl active:scale-95 uppercase tracking-widest min-w-[100px]">
+                      <Send size={16} />
                       Enviar
                     </button>
                   </div>
@@ -260,118 +255,65 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
         )}
       </div>
 
-      {/* Modal de Cadastro/Edição */}
+      {/* Modais herdam as melhorias de tema via CSS global, mas reforcei classes explícitas */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-800">
+            <div className="px-12 py-10 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
               <div>
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-                  {editingPromo?.id && !editingPromo.id.toString().startsWith('temp-') ? 'Editar Promoção' : 'Nova Oferta'}
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">
+                  {editingPromo?.id && !editingPromo.id.toString().startsWith('temp-') ? 'Editar Promo' : 'Publicar'}
                 </h2>
-                <p className="text-slate-400 text-sm font-medium">Preencha os dados da oferta abaixo</p>
+                <p className="text-slate-500 dark:text-slate-500 font-black text-[10px] mt-1 uppercase tracking-widest">Painel de Curadoria de Conteúdo</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-3 bg-white rounded-full shadow-sm hover:shadow transition-all">
-                <X size={24} />
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-600 dark:hover:text-red-500 p-4 bg-white dark:bg-slate-800 rounded-[2rem] shadow-lg transition-all active:scale-90 border border-slate-100 dark:border-slate-700">
+                <X size={28} />
               </button>
             </div>
             
-            <form onSubmit={handleSave} className="p-10 grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto">
-              <div className="space-y-6">
+            <form onSubmit={handleSave} className="p-12 grid grid-cols-1 md:grid-cols-2 gap-10 overflow-y-auto">
+              <div className="space-y-8">
                 <div className="group">
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 group-focus-within:text-indigo-500 transition-colors">Título da Oferta*</label>
-                  <input required type="text" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium" placeholder="Ex: iPhone 15 Pro Max 256GB" value={editingPromo?.title || ''} onChange={e => setEditingPromo(prev => ({ ...prev, title: e.target.value }))} />
+                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 group-focus-within:text-indigo-500 transition-colors">Título Comercial*</label>
+                  <input required type="text" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold dark:text-white" placeholder="iPhone 15 Pro 128GB" value={editingPromo?.title || ''} onChange={e => setEditingPromo(prev => ({ ...prev, title: e.target.value }))} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-6">
                   <div className="group">
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Preço (R$)*</label>
-                    <input required type="number" step="0.01" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold" placeholder="0,00" value={editingPromo?.price || ''} onChange={e => setEditingPromo(prev => ({ ...prev, price: Number(e.target.value) }))} />
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Valor (R$)*</label>
+                    <input required type="number" step="0.01" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black dark:text-white text-xl" placeholder="0,00" value={editingPromo?.price || ''} onChange={e => setEditingPromo(prev => ({ ...prev, price: Number(e.target.value) }))} />
                   </div>
                   <div className="group">
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Cupom</label>
-                    <input type="text" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-600" placeholder="Opcional" value={editingPromo?.coupon || ''} onChange={e => setEditingPromo(prev => ({ ...prev, coupon: e.target.value }))} />
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Cupom</label>
+                    <input type="text" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter" placeholder="Cupom..." value={editingPromo?.coupon || ''} onChange={e => setEditingPromo(prev => ({ ...prev, coupon: e.target.value }))} />
                   </div>
                 </div>
                 <div className="group">
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Link Direto da Oferta*</label>
-                  <input required type="url" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="https://..." value={editingPromo?.link || ''} onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} />
+                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Link da Oferta*</label>
+                  <input required type="url" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white font-medium text-xs" placeholder="https://..." value={editingPromo?.link || ''} onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} />
                 </div>
               </div>
               
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div className="group">
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">URL da Imagem do Produto</label>
-                  <input type="url" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="https://..." value={editingPromo?.imageUrl || ''} onChange={e => setEditingPromo(prev => ({ ...prev, imageUrl: e.target.value }))} />
+                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Link da Imagem</label>
+                  <input type="url" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white text-xs" placeholder="https://..." value={editingPromo?.imageUrl || ''} onChange={e => setEditingPromo(prev => ({ ...prev, imageUrl: e.target.value }))} />
                 </div>
                 <div className="group">
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Categoria da Oferta*</label>
-                  <select required className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold appearance-none cursor-pointer" value={editingPromo?.mainCategoryId || ''} onChange={e => setEditingPromo(prev => ({ ...prev, mainCategoryId: e.target.value }))}>
-                    <option value="">Selecione uma categoria...</option>
+                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Categoria*</label>
+                  <select required className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black appearance-none cursor-pointer dark:text-white uppercase tracking-widest" value={editingPromo?.mainCategoryId || ''} onChange={e => setEditingPromo(prev => ({ ...prev, mainCategoryId: e.target.value }))}>
+                    <option value="">Selecione...</option>
                     {state.categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
-                <div className="pt-6 flex justify-end gap-4 border-t border-slate-50">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-3 text-slate-400 font-bold hover:bg-slate-50 rounded-2xl transition-all active:scale-95">Descartar</button>
-                  <button type="submit" disabled={isSaving} className="px-10 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 flex items-center gap-3 shadow-xl shadow-indigo-600/30 transition-all active:scale-95 disabled:opacity-70">
-                    {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-                    {editingPromo?.id && !editingPromo.id.toString().startsWith('temp-') ? 'Atualizar Promoção' : 'Publicar Oferta'}
+                <div className="pt-10 flex justify-end gap-5 border-t border-slate-100 dark:border-slate-800">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-10 py-4 text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl transition-all">Descartar</button>
+                  <button type="submit" disabled={isSaving} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-3xl hover:bg-indigo-700 flex items-center gap-4 shadow-2xl shadow-indigo-600/40 transition-all active:scale-95 disabled:opacity-50">
+                    {isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
+                    Finalizar
                   </button>
                 </div>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Preview WhatsApp Style */}
-      {previewPromo && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in zoom-in duration-300">
-          <div className="bg-[#f0f2f5] w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden border border-white/20">
-            <div className="bg-[#00a884] p-5 flex items-center justify-between text-white shadow-md">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <Smartphone size={20}/>
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm">Visualização Mobile</h3>
-                  <p className="text-[10px] opacity-80 font-medium">PromoShare Previewer</p>
-                </div>
-              </div>
-              <button onClick={() => setPreviewPromo(null)} className="p-2 bg-black/10 hover:bg-black/20 rounded-full transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6 bg-[#e5ddd5] min-h-[400px] relative">
-              {/* WhatsApp Message Bubble */}
-              <div className="bg-white p-3 rounded-2xl shadow-sm w-[92%] relative animate-in slide-in-from-left-4">
-                {/* Image */}
-                <div className="rounded-xl overflow-hidden mb-3">
-                  <img src={previewPromo.imageUrl} className="w-full h-48 object-cover" alt="Preview" />
-                </div>
-                {/* Content */}
-                <div className="text-[13px] leading-relaxed text-[#111b21] space-y-2">
-                  <p><strong>🔥 {previewPromo.title}</strong></p>
-                  <p className="text-[#1fa855] font-black text-lg mt-1">💰 R$ {previewPromo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                  
-                  {previewPromo.coupon && (
-                    <div className="bg-amber-50 border border-amber-100 p-2 rounded-lg flex items-center gap-2 mt-2">
-                      <span className="text-amber-600 font-bold text-xs uppercase">Cupom:</span>
-                      <span className="font-black text-slate-800 bg-amber-100 px-2 py-0.5 rounded">{previewPromo.coupon}</span>
-                    </div>
-                  )}
-                  
-                  <div className="mt-4 pt-3 border-t border-slate-100">
-                    <p className="text-slate-400 text-[10px] font-bold uppercase mb-1">Link de Compra</p>
-                    <p className="text-[#027eb5] break-all font-medium underline leading-snug">{previewPromo.link}</p>
-                  </div>
-                </div>
-                
-                {/* Timestamp */}
-                <div className="text-[9px] text-slate-400 text-right mt-1 font-medium">
-                  {new Date().getHours().toString().padStart(2, '0')}:{new Date().getMinutes().toString().padStart(2, '0')}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}
