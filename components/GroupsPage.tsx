@@ -88,15 +88,22 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
         </div>
         <button 
           onClick={() => { setEditingGroup({ platform: 'TELEGRAM', categories: [] }); setIsModalOpen(true); }}
-          className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all font-black uppercase tracking-widest shadow-xl shadow-indigo-600/30 active:scale-95"
+          className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all font-black uppercase tracking-widest shadow-xl shadow-indigo-600/30 active:scale-95 shrink-0"
         >
-          <Plus size={20} />
+          <Plus size={22} />
           Novo Canal
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredGroups.map((group) => {
+        {filteredGroups.length === 0 ? (
+          <div className="col-span-full py-16 text-center bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+             <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                <Users className="text-slate-200 dark:text-slate-700" size={40} />
+             </div>
+             <p className="text-slate-400 dark:text-slate-500 font-bold uppercase text-xs tracking-widest">Nenhum canal cadastrado</p>
+          </div>
+        ) : filteredGroups.map((group) => {
           const isDeleting = deletingId === group.id;
           const isConfirming = confirmDeleteId === group.id;
           
@@ -136,7 +143,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
                   </button>
                 </div>
               </div>
-              <h4 className="text-xl font-black text-slate-800 dark:text-slate-100 mb-2">{group.name}</h4>
+              <h4 className="text-xl font-black text-slate-800 dark:text-white mb-2">{group.name}</h4>
               <div className="flex items-center gap-2 text-sm text-slate-400 dark:text-slate-500 mb-6 font-mono">
                 <Hash size={16} className="text-indigo-500" />
                 <span className="text-xs font-bold tracking-tight">{group.apiIdentifier}</span>
@@ -155,7 +162,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
                         {cat?.name}
                       </span>
                     );
-                  }) : <span className="text-[11px] text-slate-400 italic">Geral / Todas as Categorias</span>}
+                  }) : <span className="text-[11px] text-slate-400 italic font-bold">Geral / Todas as Categorias</span>}
                 </div>
               </div>
               
@@ -173,21 +180,21 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
-            <div className="px-10 py-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col transition-colors">
+            <div className="px-10 py-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/40">
               <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Conectar Canal</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-all active:scale-90">
                 <X size={24} />
               </button>
             </div>
             
-            <form onSubmit={handleSave} className="p-10 space-y-8 overflow-y-auto max-h-[75vh]">
+            <form onSubmit={handleSave} className="p-10 space-y-8 overflow-y-auto max-h-[75vh] bg-white dark:bg-slate-900">
               <div className="grid grid-cols-2 gap-4">
                 <button 
                   type="button"
                   onClick={() => setEditingGroup(prev => ({ ...prev, platform: 'TELEGRAM' }))}
                   className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border-2 transition-all group ${
-                    editingGroup?.platform === 'TELEGRAM' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 grayscale hover:grayscale-0'
+                    editingGroup?.platform === 'TELEGRAM' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 grayscale hover:grayscale-0'
                   }`}
                 >
                   <MessageSquare size={40} className={editingGroup?.platform === 'TELEGRAM' ? 'text-blue-500' : 'text-slate-400'} />
@@ -197,7 +204,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
                   type="button"
                   onClick={() => setEditingGroup(prev => ({ ...prev, platform: 'WHATSAPP' }))}
                   className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border-2 transition-all group ${
-                    editingGroup?.platform === 'WHATSAPP' ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 grayscale hover:grayscale-0'
+                    editingGroup?.platform === 'WHATSAPP' ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 grayscale hover:grayscale-0'
                   }`}
                 >
                   <Smartphone size={40} className={editingGroup?.platform === 'WHATSAPP' ? 'text-green-500' : 'text-slate-400'} />
@@ -211,7 +218,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
                   <input 
                     required
                     type="text" 
-                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold dark:text-white" 
+                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-800 dark:text-white" 
                     placeholder="Ex: Ofertas VIP Tech"
                     value={editingGroup?.name || ''}
                     onChange={e => setEditingGroup(prev => ({ ...prev, name: e.target.value }))}
@@ -232,12 +239,12 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
 
                 <div className="group">
                   <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Filtrar por Categorias (Vínculo)</label>
-                  <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800 rounded-[1.5rem] border border-slate-100 dark:border-slate-700">
-                    {state.categories.map(cat => (
-                      <label key={cat.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800">
+                  <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-inner">
+                    {state.categories.length > 0 ? state.categories.map(cat => (
+                      <label key={cat.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800 shadow-sm group/cat">
                         <input 
                           type="checkbox" 
-                          className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600"
+                          className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 cursor-pointer"
                           checked={editingGroup?.categories?.includes(cat.id) || editingGroup?.categories?.includes(cat.name) || false}
                           onChange={e => {
                             const current = editingGroup?.categories || [];
@@ -247,10 +254,9 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
                             setEditingGroup(prev => ({ ...prev, categories: updated }));
                           }}
                         />
-                        <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tighter">{cat.name}</span>
+                        <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tighter group-hover/cat:text-indigo-600 transition-colors">{cat.name}</span>
                       </label>
-                    ))}
-                    {state.categories.length === 0 && (
+                    )) : (
                       <p className="col-span-2 text-center text-[10px] text-slate-400 uppercase font-black py-4">Nenhuma categoria cadastrada</p>
                     )}
                   </div>
@@ -271,7 +277,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
                   disabled={isSaving}
                   className="px-12 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-3xl hover:bg-indigo-700 shadow-2xl shadow-indigo-600/40 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {isSaving ? <Loader2 size={24} className="animate-spin" /> : 'Salvar Grupo'}
+                  {isSaving ? <Loader2 size={24} className="animate-spin" /> : 'Salvar Canal'}
                 </button>
               </div>
             </form>

@@ -52,7 +52,10 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingPromo?.title || !editingPromo?.price || !editingPromo?.mainCategoryId) return;
+    if (!editingPromo?.title || !editingPromo?.price || !editingPromo?.mainCategoryId) {
+      alert('Por favor, preencha o título, preço e categoria.');
+      return;
+    }
 
     setIsSaving(true);
     const promoToSave: Promotion = {
@@ -73,13 +76,24 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
     };
 
     try {
+      // 1. Salva no Supabase
       const savedPromo = await api.savePromotion(promoToSave);
       
+      // 2. Envia para o Webhook automaticamente
+      try {
+        await api.sendToWebhook(savedPromo);
+        addLog('Automation', 'SUCCESS', 'Enviado automaticamente para o Webhook após salvar.');
+      } catch (webhookError: any) {
+        console.warn('Falha no webhook automático:', webhookError);
+        // Não bloqueamos o salvamento se apenas o webhook falhar, mas avisamos
+        alert(`Promoção salva, mas houve um erro no envio automático: ${webhookError.message}`);
+      }
+
       setState(prev => {
         const isUpdate = editingPromo.id && !editingPromo.id.toString().startsWith('temp-');
         const newList = isUpdate
-          ? prev.promotions.map(p => p.id === editingPromo.id ? savedPromo : p)
-          : [savedPromo, ...prev.promotions.filter(p => p.id !== promoToSave.id)];
+          ? prev.promotions.map(p => p.id === editingPromo.id ? { ...savedPromo, targetGroupIds: promoToSave.targetGroupIds } : p)
+          : [{ ...savedPromo, targetGroupIds: promoToSave.targetGroupIds }, ...prev.promotions.filter(p => p.id !== promoToSave.id)];
         
         return { ...prev, promotions: newList };
       });
@@ -88,19 +102,23 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       setEditingPromo(null);
     } catch (error: any) {
       addLog('UI_SAVE_PROMO_ERROR', 'ERROR', error);
-      alert(error.message || 'Erro ao salvar promoção.');
+      alert(error.message || 'Erro ao salvar promoção no banco de dados.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleSend = async (promo: Promotion) => {
+    if (promo.targetGroupIds.length === 0) {
+      alert('Por favor, selecione ao menos um canal de destino editando a promoção.');
+      return;
+    }
     setSendingId(promo.id);
     try {
       await api.sendToWebhook(promo);
       alert('Promoção enviada para o webhook com sucesso!');
     } catch (error: any) {
-      alert(`Erro ao enviar para webhook: ${error.message}. Certifique-se que o serviço local está rodando.`);
+      alert(`Erro no Envio: ${error.message}\n\nNota: Se for erro 404 (GET), verifique se o fluxo do Webhook está ATIVO no servidor remoto.`);
     } finally {
       setSendingId(null);
     }
@@ -144,7 +162,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             />
           </div>
           <button 
-            onClick={() => { setEditingPromo({ mainCategoryId: state.categories[0]?.name || '', targetGroupIds: [] }); setIsModalOpen(true); }}
+            onClick={() => { setEditingPromo({ mainCategoryId: state.categories[0]?.id || state.categories[0]?.name || '', targetGroupIds: [] }); setIsModalOpen(true); }}
             className="w-full lg:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all font-black uppercase tracking-widest shadow-xl shadow-indigo-600/30 active:scale-95 shrink-0"
           >
             <Plus size={22} />
@@ -236,7 +254,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
 
                 <div className="p-7 space-y-6">
                   <div>
-                    <h4 className="font-bold text-slate-800 dark:text-slate-100 line-clamp-2 leading-tight h-10 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300 tracking-tight">{promo.title}</h4>
+                    <h4 className="font-bold text-slate-800 dark:text-white line-clamp-2 leading-tight h-10 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300 tracking-tight">{promo.title}</h4>
                     <div className="flex items-center justify-between mt-6">
                       <div className="flex flex-col">
                         <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Preço Promo</span>
@@ -247,6 +265,13 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                       </div>
                       <span className="text-[10px] font-mono font-black text-slate-400 dark:text-slate-600 bg-slate-50 dark:bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-100 dark:border-slate-700 shadow-inner">#{promo.id}</span>
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <Users size={14} className="text-indigo-600 dark:text-indigo-400" />
+                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                      {promo.targetGroupIds.length === 0 ? 'Nenhum canal selecionado' : `${promo.targetGroupIds.length} ${promo.targetGroupIds.length === 1 ? 'canal' : 'canais'}`}
+                    </span>
                   </div>
 
                   <div className="pt-5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
@@ -288,7 +313,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                 </h2>
                 <p className="text-slate-500 dark:text-slate-500 font-black text-[10px] mt-1 uppercase tracking-widest">Painel de Curadoria de Conteúdo</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-600 dark:hover:text-red-500 p-4 bg-white dark:bg-slate-800 rounded-[2rem] shadow-lg transition-all active:scale-90 border border-slate-100 dark:border-slate-700">
+              <button onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="text-slate-400 hover:text-red-600 dark:hover:text-red-500 p-4 bg-white dark:bg-slate-800 rounded-[2rem] shadow-lg transition-all active:scale-90 border border-slate-100 dark:border-slate-700">
                 <X size={28} />
               </button>
             </div>
@@ -314,18 +339,17 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                   <input required type="url" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white font-medium text-xs" placeholder="https://..." value={editingPromo?.link || ''} onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} />
                 </div>
 
-                {/* Seleção de Grupos de Destino */}
                 <div className="group">
                   <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <Users size={14} className="text-indigo-500" />
-                    Canais de Destino*
+                    Canais de Destino (Onde enviar)*
                   </label>
-                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.5rem] border border-slate-100 dark:border-slate-700">
-                    {state.groups.map(group => (
-                      <label key={group.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800 shadow-sm">
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-inner">
+                    {state.groups.length > 0 ? state.groups.map(group => (
+                      <label key={group.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800 shadow-sm group/item">
                         <input 
                           type="checkbox" 
-                          className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600"
+                          className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 cursor-pointer"
                           checked={editingPromo?.targetGroupIds?.includes(group.id) || false}
                           onChange={e => {
                             const current = editingPromo?.targetGroupIds || [];
@@ -336,13 +360,12 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                           }}
                         />
                         <div className="flex flex-col">
-                          <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-tighter">{group.name}</span>
-                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase opacity-70">{group.platform}</span>
+                          <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-tighter group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">{group.name}</span>
+                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase opacity-70">{group.platform} - {group.apiIdentifier}</span>
                         </div>
                       </label>
-                    ))}
-                    {state.groups.length === 0 && (
-                      <p className="text-center text-[10px] text-slate-400 uppercase font-black py-4">Nenhum grupo cadastrado</p>
+                    )) : (
+                      <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black py-6 italic">Cadastre Canais primeiro na aba "Grupos".</p>
                     )}
                   </div>
                 </div>
@@ -357,22 +380,22 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                   <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Categoria*</label>
                   <select required className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black appearance-none cursor-pointer dark:text-white uppercase tracking-widest" value={editingPromo?.mainCategoryId || ''} onChange={e => setEditingPromo(prev => ({ ...prev, mainCategoryId: e.target.value }))}>
                     <option value="">Selecione...</option>
-                    {state.categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    {state.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 
                 <div className="p-6 bg-indigo-50 dark:bg-indigo-950/20 rounded-[1.5rem] border border-indigo-100 dark:border-indigo-900/50 flex items-start gap-4">
                   <LayoutGrid className="text-indigo-600 dark:text-indigo-400 shrink-0" size={20} />
                   <p className="text-[11px] text-indigo-700 dark:text-indigo-300 font-bold leading-relaxed">
-                    <strong>Sugestão:</strong> Selecione os canais onde deseja que esta oferta seja distribuída imediatamente após salvar ou ao clicar em enviar manualmente.
+                    <strong>Automação Ativa:</strong> Ao clicar em Finalizar, a oferta será salva e disparada imediatamente para os canais selecionados.
                   </p>
                 </div>
 
                 <div className="pt-10 flex justify-end gap-5 border-t border-slate-100 dark:border-slate-800">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-10 py-4 text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl transition-all">Descartar</button>
+                  <button type="button" onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="px-10 py-4 text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl transition-all">Descartar</button>
                   <button type="submit" disabled={isSaving} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-3xl hover:bg-indigo-700 flex items-center gap-4 shadow-2xl shadow-indigo-600/40 transition-all active:scale-95 disabled:opacity-50">
                     {isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
-                    Finalizar
+                    Finalizar e Enviar
                   </button>
                 </div>
               </div>

@@ -46,9 +46,9 @@ const mapPromoFromDB = (p: any): Promotion => ({
   status: 'SENT',
   scheduledAt: p.created_at,
   sentAt: p.created_at,
-  ownerId: 'system', 
+  ownerId: 'system', // Forçado como system pois a coluna owner_id não existe no banco
   content: '', 
-  targetGroupIds: [],
+  targetGroupIds: [], // Coluna inexistente no banco, gerida em memória/webhook
   createdAt: p.created_at
 });
 
@@ -59,11 +59,12 @@ const mapPromoToDB = (p: Promotion) => {
     link: p.link,
     cupom: p.coupon,
     image_url: p.imageUrl,
-    category: p.mainCategoryId,
+    category: p.mainCategoryId
+    // Removidas colunas owner_id e target_group_ids que causaram erro PGRST204
   };
 
   const numericId = Number(p.id);
-  if (!isNaN(numericId)) {
+  if (!isNaN(numericId) && !p.id.toString().startsWith('temp-')) {
     payload.id = numericId;
   }
   
@@ -108,7 +109,7 @@ export const api = {
         platform: g.platform,
         apiIdentifier: g.api_identifier,
         categories: g.categories || [],
-        ownerId: g.owner_id,
+        ownerId: g.owner_id || 'system',
         createdAt: g.created_at
       })),
       categories: (cats.data || []) as Category[]
@@ -125,7 +126,12 @@ export const api = {
 
     if (error) throw handleSupabaseError(error, 'savePromotion');
     addLog('savePromotion', 'SUCCESS', 'Promoção salva com sucesso');
-    return mapPromoFromDB(data);
+    
+    // Retornamos o objeto mapeado mas garantimos que o targetGroupIds 
+    // selecionado pelo usuário no UI persista para o próximo passo (webhook)
+    const result = mapPromoFromDB(data);
+    result.targetGroupIds = promo.targetGroupIds;
+    return result;
   },
 
   async deletePromotion(id: string) {
@@ -137,26 +143,35 @@ export const api = {
   },
 
   async sendToWebhook(promo: Promotion) {
-    const WEBHOOK_URL = 'http://localhost:5678/webhook-test/promoshare';
+    const WEBHOOK_URL = 'http://76.13.66.108:5678/webhook/promoshare';
     addLog('sendToWebhook', 'INFO', { promoId: promo.id, url: WEBHOOK_URL });
     
     try {
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           ...promo,
+          event: 'promotion_sent',
           sent_at_webhook: new Date().toISOString(),
-          app_source: 'PromoShare Web'
+          app_source: 'PromoShare Web',
+          target_groups: promo.targetGroupIds
         })
       });
 
-      if (!response.ok) throw new Error(`Status: ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro ${response.status}: ${errorText || 'Sem resposta do servidor'}`);
+      }
       
       addLog('sendToWebhook', 'SUCCESS', 'Dados enviados para o webhook com sucesso');
       return true;
     } catch (error: any) {
-      addLog('sendToWebhook', 'ERROR', error);
+      addLog('sendToWebhook', 'ERROR', error.message || error);
       throw error;
     }
   },
