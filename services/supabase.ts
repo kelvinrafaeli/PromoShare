@@ -2,30 +2,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { Promotion, Group, Category, User } from '../types';
 
-/*
-  === ESQUEMA DO BANCO DE DADOS (SUPABASE SQL) ===
-  
-  -- Tabela de Usuários (Nova)
-  CREATE TABLE public.users (
-      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-      name text NOT NULL,
-      email text NOT NULL UNIQUE,
-      password text NOT NULL,
-      role text DEFAULT 'USER',
-      avatar text,
-      created_at timestamp with time zone DEFAULT now()
-  );
-
-  -- Tabelas Existentes
-  public.promotions, public.groups, public.categories
-*/
-
 const supabaseUrl = 'https://behdyuplqoxgdbujzkob.supabase.co';
 const supabaseKey = 'sb_publishable_OHdZ5yIbqvoowxDpmIEYqQ_xNzoMIB7';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// --- Mappers (DB snake_case <-> App camelCase) ---
+// --- Mappers ---
 
 const mapPromoFromDB = (p: any): Promotion => ({
   id: p.id,
@@ -84,18 +66,15 @@ const mapGroupToDB = (g: Group) => ({
 // --- Services ---
 
 export const api = {
-  // Autenticação usando a tabela 'users' personalizada
   async login(email: string, password: string): Promise<User> {
     const { data, error } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
-      .eq('password', password) // Verifica email e senha
+      .eq('password', password)
       .single();
 
-    if (error || !data) {
-      throw new Error('Credenciais inválidas');
-    }
+    if (error || !data) throw new Error('Credenciais inválidas ou erro de conexão.');
 
     return {
       id: data.id,
@@ -110,12 +89,8 @@ export const api = {
     const [promos, groups, cats] = await Promise.all([
       supabase.from('promotions').select('*').order('created_at', { ascending: false }),
       supabase.from('groups').select('*').order('created_at', { ascending: false }),
-      supabase.from('categories').select('*')
+      supabase.from('categories').select('*').order('name', { ascending: true })
     ]);
-
-    if (promos.error) console.error('Erro ao buscar promoções:', promos.error);
-    if (groups.error) console.error('Erro ao buscar grupos:', groups.error);
-    if (cats.error) console.error('Erro ao buscar categorias:', cats.error);
 
     return {
       promotions: (promos.data || []).map(mapPromoFromDB),
@@ -125,51 +100,49 @@ export const api = {
   },
 
   async savePromotion(promo: Promotion) {
-    const { error } = await supabase
-      .from('promotions')
-      .upsert(mapPromoToDB(promo));
+    const { error } = await supabase.from('promotions').upsert(mapPromoToDB(promo));
     if (error) throw error;
   },
 
   async deletePromotion(id: string) {
-    const { error } = await supabase
-      .from('promotions')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    // Importante: eq('id', id) precisa que o ID seja exatamente igual ao do banco
+    const { error, count } = await supabase.from('promotions').delete().eq('id', id);
+    if (error) {
+      console.error('Erro Supabase Delete Promo:', error);
+      throw error;
+    }
+    return count;
   },
 
   async saveGroup(group: Group) {
-    const { error } = await supabase
-      .from('groups')
-      .upsert(mapGroupToDB(group));
+    const { error } = await supabase.from('groups').upsert(mapGroupToDB(group));
     if (error) throw error;
   },
 
   async deleteGroup(id: string) {
-    const { error } = await supabase
-      .from('groups')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    const { error, count } = await supabase.from('groups').delete().eq('id', id);
+    if (error) {
+      console.error('Erro Supabase Delete Group:', error);
+      throw error;
+    }
+    return count;
   },
 
   async saveCategory(category: Category) {
-    const { error } = await supabase
-      .from('categories')
-      .upsert({
-        id: category.id,
-        name: category.name,
-        color: category.color
-      }); 
+    const { error } = await supabase.from('categories').upsert({
+      id: category.id,
+      name: category.name,
+      color: category.color
+    }); 
     if (error) throw error;
   },
 
   async deleteCategory(id: string) {
-    const { error } = await supabase
-      .from('categories')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    const { error, count } = await supabase.from('categories').delete().eq('id', id);
+    if (error) {
+      console.error('Erro Supabase Delete Category:', error);
+      throw error;
+    }
+    return count;
   }
 };

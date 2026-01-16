@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Plus, Smartphone, MessageSquare, 
-  Trash2, Edit3, Hash, LayoutGrid, CheckCircle2, Users
+  Trash2, Edit3, Hash, LayoutGrid, CheckCircle2, Users, Loader2
 } from 'lucide-react';
 import { AppState, Group } from '../types';
 import { api } from '../services/supabase';
@@ -16,6 +16,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Partial<Group> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filteredGroups = useMemo(() => {
     if (state.user?.role === 'ADMIN') return state.groups;
@@ -48,25 +49,26 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
       
       setIsModalOpen(false);
       setEditingGroup(null);
-    } catch (error) {
-      alert("Erro ao salvar grupo.");
-      console.error(error);
+    } catch (error: any) {
+      alert(`Erro ao salvar grupo: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const deleteGroup = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este grupo?')) {
+    if (confirm('Tem certeza que deseja excluir este grupo permanentemente?')) {
+      setDeletingId(id);
       try {
         await api.deleteGroup(id);
         setState(prev => ({
           ...prev,
           groups: prev.groups.filter(g => g.id !== id)
         }));
-      } catch (error) {
-        alert("Erro ao excluir grupo.");
-        console.error(error);
+      } catch (error: any) {
+        alert(`Erro ao excluir: ${error.message || 'Verifique as políticas de segurança no painel do Supabase.'}`);
+      } finally {
+        setDeletingId(null);
       }
     }
   };
@@ -88,59 +90,64 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredGroups.map((group) => (
-          <div key={group.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-200 transition-all group">
-            <div className="flex items-start justify-between mb-4">
-              <div className={`p-3 rounded-2xl ${group.platform === 'TELEGRAM' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
-                {group.platform === 'TELEGRAM' ? <MessageSquare size={24} /> : <Smartphone size={24} />}
+        {filteredGroups.map((group) => {
+          const isDeleting = deletingId === group.id;
+          return (
+            <div key={group.id} className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-200 transition-all group ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className="flex items-start justify-between mb-4">
+                <div className={`p-3 rounded-2xl ${group.platform === 'TELEGRAM' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                  {group.platform === 'TELEGRAM' ? <MessageSquare size={24} /> : <Smartphone size={24} />}
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    disabled={isDeleting}
+                    onClick={() => { setEditingGroup(group); setIsModalOpen(true); }}
+                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                  >
+                    <Edit3 size={18} />
+                  </button>
+                  <button 
+                    disabled={isDeleting}
+                    onClick={() => deleteGroup(group.id)}
+                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                  >
+                    {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => { setEditingGroup(group); setIsModalOpen(true); }}
-                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
-                >
-                  <Edit3 size={18} />
-                </button>
-                <button 
-                  onClick={() => deleteGroup(group.id)}
-                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                >
-                  <Trash2 size={18} />
-                </button>
+              <h4 className="text-lg font-bold text-slate-800 mb-1">{group.name}</h4>
+              <div className="flex items-center gap-1.5 text-sm text-slate-500 mb-4">
+                <Hash size={14} />
+                <span className="font-mono">{group.apiIdentifier}</span>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <LayoutGrid size={14} className="text-slate-400" />
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Categorias</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {group.categories.length > 0 ? group.categories.map(catId => {
+                    const cat = state.categories.find(c => c.id === catId);
+                    return (
+                      <span key={catId} className={`px-2 py-1 rounded-md text-[10px] font-bold text-white ${cat?.color || 'bg-slate-300'}`}>
+                        {cat?.name}
+                      </span>
+                    );
+                  }) : <span className="text-xs text-slate-400 italic">Nenhuma categoria associada</span>}
+                </div>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-green-600">
+                  <CheckCircle2 size={16} />
+                  <span className="text-xs font-bold uppercase tracking-wide">Ativo</span>
+                </div>
+                <span className="text-xs text-slate-400 font-medium">{group.platform}</span>
               </div>
             </div>
-            <h4 className="text-lg font-bold text-slate-800 mb-1">{group.name}</h4>
-            <div className="flex items-center gap-1.5 text-sm text-slate-500 mb-4">
-              <Hash size={14} />
-              <span className="font-mono">{group.apiIdentifier}</span>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <LayoutGrid size={14} className="text-slate-400" />
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Categorias</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {group.categories.length > 0 ? group.categories.map(catId => {
-                  const cat = state.categories.find(c => c.id === catId);
-                  return (
-                    <span key={catId} className={`px-2 py-1 rounded-md text-[10px] font-bold text-white ${cat?.color || 'bg-slate-300'}`}>
-                      {cat?.name}
-                    </span>
-                  );
-                }) : <span className="text-xs text-slate-400 italic">Nenhuma categoria associada</span>}
-              </div>
-            </div>
-            
-            <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-green-600">
-                <CheckCircle2 size={16} />
-                <span className="text-xs font-bold uppercase tracking-wide">Ativo</span>
-              </div>
-              <span className="text-xs text-slate-400 font-medium">{group.platform}</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {filteredGroups.length === 0 && (
           <div className="col-span-full py-12 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
             <Users size={48} className="mx-auto text-slate-300 mb-4" />
