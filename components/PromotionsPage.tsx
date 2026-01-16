@@ -6,6 +6,7 @@ import {
   Users
 } from 'lucide-react';
 import { AppState, Promotion, Group } from '../types';
+import { api } from '../services/supabase';
 
 interface PromotionsPageProps {
   state: AppState;
@@ -17,6 +18,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<Partial<Promotion> | null>(null);
   const [previewPromo, setPreviewPromo] = useState<Promotion | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const filteredPromos = useMemo(() => {
     let list = state.promotions;
@@ -33,12 +35,13 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
     return state.groups.filter(g => g.ownerId === state.user?.id);
   }, [state.groups, state.user]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPromo?.title || !editingPromo?.price || !editingPromo?.mainCategoryId) return;
 
+    setIsSaving(true);
     const newPromo: Promotion = {
-      id: editingPromo.id || `promo-${Date.now()}`,
+      id: editingPromo.id || crypto.randomUUID(),
       title: editingPromo.title,
       price: Number(editingPromo.price),
       link: editingPromo.link || '',
@@ -54,23 +57,40 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       targetGroupIds: editingPromo.targetGroupIds || [],
     };
 
-    setState(prev => ({
-      ...prev,
-      promotions: editingPromo.id 
-        ? prev.promotions.map(p => p.id === editingPromo.id ? newPromo : p)
-        : [newPromo, ...prev.promotions]
-    }));
-    
-    setIsModalOpen(false);
-    setEditingPromo(null);
-  };
+    try {
+      // Save to Supabase
+      await api.savePromotion(newPromo);
 
-  const deletePromo = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta promoção?')) {
+      // Update Local State
       setState(prev => ({
         ...prev,
-        promotions: prev.promotions.filter(p => p.id !== id)
+        promotions: editingPromo.id 
+          ? prev.promotions.map(p => p.id === editingPromo.id ? newPromo : p)
+          : [newPromo, ...prev.promotions]
       }));
+      
+      setIsModalOpen(false);
+      setEditingPromo(null);
+    } catch (error) {
+      alert("Erro ao salvar promoção no banco de dados.");
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deletePromo = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta promoção?')) {
+      try {
+        await api.deletePromotion(id);
+        setState(prev => ({
+          ...prev,
+          promotions: prev.promotions.filter(p => p.id !== id)
+        }));
+      } catch (error) {
+        alert("Erro ao excluir promoção.");
+        console.error(error);
+      }
     }
   };
 
@@ -321,15 +341,21 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition-colors"
+                  disabled={isSaving}
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="px-10 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2"
+                  disabled={isSaving}
+                  className="px-10 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
-                  <Save size={18} />
-                  Salvar Promoção
+                  {isSaving ? 'Salvando...' : (
+                    <>
+                      <Save size={18} />
+                      Salvar Promoção
+                    </>
+                  )}
                 </button>
               </div>
             </form>

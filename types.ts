@@ -17,6 +17,7 @@ export interface Category {
   id: string;
   name: string;
   color: string;
+  createdAt?: string;
 }
 
 export interface Group {
@@ -26,6 +27,7 @@ export interface Group {
   apiIdentifier: string;
   categories: string[]; // Category IDs
   ownerId: string;
+  createdAt?: string;
 }
 
 export interface Promotion {
@@ -43,6 +45,7 @@ export interface Promotion {
   ownerId: string;
   content?: string; // Formatted message
   targetGroupIds: string[];
+  createdAt?: string;
 }
 
 export interface AutomationRule {

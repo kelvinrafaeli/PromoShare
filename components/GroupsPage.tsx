@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-  Plus, Search, Smartphone, MessageSquare, 
-  Trash2, Edit3, Shield, Hash, LayoutGrid, CheckCircle2, Users
+  Plus, Smartphone, MessageSquare, 
+  Trash2, Edit3, Hash, LayoutGrid, CheckCircle2, Users
 } from 'lucide-react';
-import { AppState, Group, Platform } from '../types';
+import { AppState, Group } from '../types';
+import { api } from '../services/supabase';
 
 interface GroupsPageProps {
   state: AppState;
@@ -14,18 +15,20 @@ interface GroupsPageProps {
 const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Partial<Group> | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const filteredGroups = useMemo(() => {
     if (state.user?.role === 'ADMIN') return state.groups;
     return state.groups.filter(g => g.ownerId === state.user?.id);
   }, [state.groups, state.user]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingGroup?.name || !editingGroup?.apiIdentifier || !editingGroup?.platform) return;
 
+    setIsSaving(true);
     const newGroup: Group = {
-      id: editingGroup.id || `group-${Date.now()}`,
+      id: editingGroup.id || crypto.randomUUID(),
       name: editingGroup.name,
       platform: editingGroup.platform,
       apiIdentifier: editingGroup.apiIdentifier,
@@ -33,23 +36,38 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
       ownerId: state.user?.id || 'unknown',
     };
 
-    setState(prev => ({
-      ...prev,
-      groups: editingGroup.id 
-        ? prev.groups.map(g => g.id === editingGroup.id ? newGroup : g)
-        : [...prev.groups, newGroup]
-    }));
-    
-    setIsModalOpen(false);
-    setEditingGroup(null);
-  };
+    try {
+      await api.saveGroup(newGroup);
 
-  const deleteGroup = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este grupo?')) {
       setState(prev => ({
         ...prev,
-        groups: prev.groups.filter(g => g.id !== id)
+        groups: editingGroup.id 
+          ? prev.groups.map(g => g.id === editingGroup.id ? newGroup : g)
+          : [...prev.groups, newGroup]
       }));
+      
+      setIsModalOpen(false);
+      setEditingGroup(null);
+    } catch (error) {
+      alert("Erro ao salvar grupo.");
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteGroup = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este grupo?')) {
+      try {
+        await api.deleteGroup(id);
+        setState(prev => ({
+          ...prev,
+          groups: prev.groups.filter(g => g.id !== id)
+        }));
+      } catch (error) {
+        alert("Erro ao excluir grupo.");
+        console.error(error);
+      }
     }
   };
 
@@ -125,7 +143,6 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
         ))}
         {filteredGroups.length === 0 && (
           <div className="col-span-full py-12 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-            {/* Added Users import from lucide-react */}
             <Users size={48} className="mx-auto text-slate-300 mb-4" />
             <h3 className="text-lg font-bold text-slate-800">Nenhum grupo cadastrado</h3>
             <p className="text-slate-500 mb-6">Conecte seu primeiro grupo para começar a enviar promoções</p>
@@ -229,14 +246,16 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition-colors"
+                  disabled={isSaving}
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all"
+                  disabled={isSaving}
+                  className="px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50"
                 >
-                  Salvar Grupo
+                  {isSaving ? 'Salvando...' : 'Salvar Grupo'}
                 </button>
               </div>
             </form>

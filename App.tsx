@@ -1,41 +1,57 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { 
   Tag, 
   Send, 
   Users, 
   LogOut, 
-  Plus, 
   Bell, 
   TrendingUp,
-  Smartphone,
-  MessageSquare
 } from 'lucide-react';
 
-import { User, Promotion, Group, Category, AutomationRule, AppState } from './types';
-import { INITIAL_CATEGORIES, MOCK_ADMIN, MOCK_USER } from './constants';
+import { User, AppState } from './types';
+import { INITIAL_CATEGORIES } from './constants';
+import { api } from './services/supabase';
 import PromotionsPage from './components/PromotionsPage';
 import GroupsPage from './components/GroupsPage';
 import CategoriesPage from './components/CategoriesPage';
 import Login from './components/Login';
 
 const App: React.FC = () => {
-  const [state, setState] = useState<AppState>(() => {
-    const saved = localStorage.getItem('promoshare_state');
-    if (saved) return JSON.parse(saved);
-    return {
-      user: null,
-      promotions: [],
-      groups: [],
-      categories: INITIAL_CATEGORIES,
-      rules: []
-    };
+  const [state, setState] = useState<AppState>({
+    user: null,
+    promotions: [],
+    groups: [],
+    categories: INITIAL_CATEGORIES,
+    rules: []
   });
 
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch initial data from Supabase when user logs in
   useEffect(() => {
-    localStorage.setItem('promoshare_state', JSON.stringify(state));
-  }, [state]);
+    if (state.user) {
+      const loadData = async () => {
+        setIsLoading(true);
+        try {
+          const data = await api.fetchAll();
+          setState(prev => ({
+            ...prev,
+            promotions: data.promotions,
+            groups: data.groups,
+            // Only overwrite categories if we got some from DB, else keep defaults
+            categories: data.categories.length > 0 ? data.categories : prev.categories
+          }));
+        } catch (error) {
+          console.error("Failed to load data from Supabase:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      loadData();
+    }
+  }, [state.user]);
 
   const handleLogin = (user: User) => {
     setState(prev => ({ ...prev, user }));
@@ -73,13 +89,20 @@ const App: React.FC = () => {
           </header>
 
           <div className="p-8">
-            <Routes>
-              <Route path="/promotions" element={<PromotionsPage state={state} setState={setState} />} />
-              <Route path="/groups" element={<GroupsPage state={state} setState={setState} />} />
-              <Route path="/categories" element={<CategoriesPage state={state} setState={setState} />} />
-              <Route path="/" element={<Navigate to="/promotions" />} />
-              <Route path="*" element={<Navigate to="/promotions" />} />
-            </Routes>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-64 text-slate-400 gap-2">
+                <TrendingUp className="animate-bounce" />
+                <span>Carregando dados...</span>
+              </div>
+            ) : (
+              <Routes>
+                <Route path="/promotions" element={<PromotionsPage state={state} setState={setState} />} />
+                <Route path="/groups" element={<GroupsPage state={state} setState={setState} />} />
+                <Route path="/categories" element={<CategoriesPage state={state} setState={setState} />} />
+                <Route path="/" element={<Navigate to="/promotions" />} />
+                <Route path="*" element={<Navigate to="/promotions" />} />
+              </Routes>
+            )}
           </div>
         </main>
       </div>

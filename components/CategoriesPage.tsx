@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Plus, Tag, Trash2, Edit3, Save } from 'lucide-react';
 import { AppState, Category } from '../types';
+import { api } from '../services/supabase';
 
 interface CategoriesPageProps {
   state: AppState;
@@ -10,7 +11,7 @@ interface CategoriesPageProps {
 
 const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
   const [newCat, setNewCat] = useState({ name: '', color: 'bg-indigo-500' });
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const colors = [
     'bg-indigo-500', 'bg-blue-500', 'bg-sky-500', 'bg-emerald-500', 
@@ -18,23 +19,38 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
     'bg-pink-500', 'bg-purple-500', 'bg-slate-700', 'bg-black'
   ];
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCat.name) return;
     
+    setIsSaving(true);
     const cat: Category = {
       id: `cat-${Date.now()}`,
       name: newCat.name,
       color: newCat.color
     };
 
-    setState(prev => ({ ...prev, categories: [...prev.categories, cat] }));
-    setNewCat({ name: '', color: 'bg-indigo-500' });
+    try {
+      await api.saveCategory(cat);
+      setState(prev => ({ ...prev, categories: [...prev.categories, cat] }));
+      setNewCat({ name: '', color: 'bg-indigo-500' });
+    } catch (error) {
+      alert("Erro ao salvar categoria.");
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Excluir esta categoria? Isso pode afetar promoções e automações existentes.')) {
-      setState(prev => ({ ...prev, categories: prev.categories.filter(c => c.id !== id) }));
+      try {
+        await api.deleteCategory(id);
+        setState(prev => ({ ...prev, categories: prev.categories.filter(c => c.id !== id) }));
+      } catch (error) {
+        alert("Erro ao excluir categoria.");
+        console.error(error);
+      }
     }
   };
 
@@ -72,10 +88,15 @@ const CategoriesPage: React.FC<CategoriesPageProps> = ({ state, setState }) => {
         </div>
         <button 
           type="submit"
-          className="w-full md:w-auto px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+          disabled={isSaving}
+          className="w-full md:w-auto px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <Plus size={20} />
-          Adicionar
+          {isSaving ? '...' : (
+            <>
+              <Plus size={20} />
+              Adicionar
+            </>
+          )}
         </button>
       </form>
 

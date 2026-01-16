@@ -12,10 +12,10 @@ export const INITIAL_CATEGORIES: Category[] = [
 
 export const MOCK_ADMIN: User = {
   id: 'admin-1',
-  name: 'Admin PromoShare',
-  email: 'admin@promoshare.com',
+  name: 'System Thautec',
+  email: 'systemthautec@gmail.com',
   role: 'ADMIN',
-  avatar: 'https://picsum.photos/seed/admin/200'
+  avatar: 'https://ui-avatars.com/api/?name=System+Thautec&background=4f46e5&color=fff'
 };
 
 export const MOCK_USER: User = {

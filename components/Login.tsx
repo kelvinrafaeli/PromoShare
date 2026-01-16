@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { Lock, Mail, TrendingUp, Chrome, Github } from 'lucide-react';
+import { Lock, Mail, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
 import { User } from '../types';
-import { MOCK_ADMIN, MOCK_USER } from '../constants';
+import { api } from '../services/supabase';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -11,14 +11,23 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple demo logic
-    if (email.includes('admin')) {
-      onLogin(MOCK_ADMIN);
-    } else {
-      onLogin(MOCK_USER);
+    setError('');
+    setIsLoading(true);
+
+    try {
+      // Realiza o login consultando a tabela 'users' no Supabase
+      const user = await api.login(email, password);
+      onLogin(user);
+    } catch (err) {
+      setError('E-mail ou senha incorretos. Verifique suas credenciais.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -34,13 +43,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <TrendingUp size={32} className="text-white" />
           </div>
           <h2 className="text-3xl font-extrabold text-white tracking-tight">PromoShare</h2>
-          <p className="mt-2 text-slate-400">Gerenciamento inteligente de ofertas</p>
+          <p className="mt-2 text-slate-400">Sistema Particular de Gerenciamento</p>
         </div>
 
         <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl border border-white/10 shadow-2xl">
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl flex items-center gap-2 text-red-400 text-sm animate-pulse">
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">E-mail</label>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">E-mail de Acesso</label>
               <div className="relative">
                 <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input 
@@ -50,6 +66,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -65,6 +82,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -74,44 +92,30 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <input type="checkbox" className="rounded border-white/10 bg-white/5 text-indigo-600 focus:ring-indigo-500" />
                 Lembrar-me
               </label>
-              <a href="#" className="text-indigo-400 font-bold hover:text-indigo-300">Esqueceu a senha?</a>
             </div>
 
             <button 
               type="submit"
-              className="w-full py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 transition-all"
+              disabled={isLoading}
+              className="w-full py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Entrar na Plataforma
+              {isLoading ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  Autenticando...
+                </>
+              ) : (
+                'Entrar na Plataforma'
+              )}
             </button>
           </form>
-
-          <div className="mt-8">
-            <div className="relative flex items-center justify-center mb-6">
-              <div className="absolute inset-0 border-t border-white/10"></div>
-              <span className="relative px-4 bg-slate-900/0 text-[10px] font-bold text-slate-500 uppercase tracking-widest backdrop-blur-md">ou entrar com</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => onLogin(MOCK_USER)}
-                className="flex items-center justify-center gap-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 hover:bg-white/10 transition-all font-bold text-sm"
-              >
-                <Chrome size={18} />
-                Google
-              </button>
-              <button 
-                className="flex items-center justify-center gap-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 hover:bg-white/10 transition-all font-bold text-sm"
-              >
-                <Github size={18} />
-                GitHub
-              </button>
-            </div>
+          
+          <div className="mt-6 pt-6 border-t border-white/5 text-center">
+             <p className="text-xs text-slate-500">
+               Caso não tenha acesso, contate o administrador do sistema.
+             </p>
           </div>
         </div>
-
-        <p className="text-center text-slate-500 text-sm">
-          Não tem conta? <a href="#" className="text-indigo-400 font-bold hover:text-indigo-300">Crie sua conta agora</a>
-        </p>
       </div>
     </div>
   );
