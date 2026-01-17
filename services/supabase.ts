@@ -141,41 +141,82 @@ export const api = {
   },
 
   async sendToWebhook(promo: Promotion) {
-    // Nova URL em HTTPS via sslip.io
     const WEBHOOK_URL = 'https://76.13.66.108.sslip.io/webhook/promoshare';
     addLog('sendToWebhook', 'INFO', { promoId: promo.id, url: WEBHOOK_URL });
-    
+
     try {
-      // Agora que usamos HTTPS, podemos tentar enviar como application/json
+      // 1. Resolver Nome da Categoria
+      let categoryName = promo.mainCategoryId; // fallback
+      if (promo.mainCategoryId) {
+        const { data: catData } = await supabase
+          .from('categories')
+          .select('name')
+          .eq('id', promo.mainCategoryId)
+          .single();
+        
+        if (catData) categoryName = catData.name;
+      }
+
+      // 2. Resolver Identificadores dos Grupos
+      let targetIdentifiers: string[] = [];
+      let targetDetails: any[] = [];
+      
+      if (promo.targetGroupIds && promo.targetGroupIds.length > 0) {
+        const { data: groupData } = await supabase
+          .from('groups')
+          .select('api_identifier, name, platform')
+          .in('id', promo.targetGroupIds);
+
+        if (groupData) {
+          targetIdentifiers = groupData.map(g => g.api_identifier);
+          targetDetails = groupData;
+        }
+      }
+
+      const payload = {
+        id: promo.id,
+        title: promo.title,
+        price: promo.price,
+        link: promo.link,
+        cupom: promo.coupon,
+        image_url: promo.imageUrl,
+        
+        // Dados originais de ID
+        category_id: promo.mainCategoryId,
+        
+        // Dados resolvidos (Human Readable / API Ready)
+        category: categoryName, // Ex: "Eletrônicos"
+        target_groups: targetIdentifiers, // Ex: ["-1002323", "5511999"]
+        target_details: targetDetails, // Objeto completo com plataforma para lógica avançada
+        
+        timestamp: new Date().toISOString(),
+        app: 'PromoShare'
+      };
+
+      addLog('sendToWebhook', 'INFO', { msg: 'Enviando payload resolvido', payload });
+
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
-        // 'no-cors' envia o dado mas impede que leiamos a resposta se o n8n não tiver CORS habilitado.
-        // Se você habilitou CORS no n8n (Access-Control-Allow-Origin: *), pode remover o 'no-cors'.
-        mode: 'no-cors', 
         headers: { 
-          'Content-Type': 'application/json' 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          // Token atualizado conforme solicitação
+          'Authorization': '93e4c1ca-e607-4d28-b40f-5f5013d80af4'
         },
-        body: JSON.stringify({
-          id: promo.id,
-          title: promo.title,
-          price: promo.price,
-          link: promo.link,
-          cupom: promo.coupon,
-          image_url: promo.imageUrl,
-          category: promo.mainCategoryId,
-          target_groups: promo.targetGroupIds,
-          timestamp: new Date().toISOString(),
-          app: 'PromoShare'
-        })
+        body: JSON.stringify(payload)
       });
 
-      addLog('sendToWebhook', 'SUCCESS', 'Dados enviados para o n8n com sucesso!');
+      if (!response.ok) {
+        throw new Error(`Erro do Webhook: ${response.status} ${response.statusText}`);
+      }
+
+      addLog('sendToWebhook', 'SUCCESS', 'Dados JSON enviados para o n8n com sucesso!');
       return true;
     } catch (error: any) {
       addLog('sendToWebhook', 'ERROR', error.message || error);
       
-      if (error.message === 'Failed to fetch') {
-        throw new Error('Falha de Rede: Verifique se o n8n está acessível. Se o erro persistir, certifique-se de habilitar CORS nas opções do nó de Webhook do n8n (Add Option -> Response Headers -> Access-Control-Allow-Origin: *).');
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        throw new Error('Erro de CORS ou Rede: O navegador bloqueou o envio JSON. Certifique-se de que o nó Webhook no n8n tenha "Access-Control-Allow-Origin: *" nos Response Headers.');
       }
       throw error;
     }
