@@ -4,7 +4,7 @@ import {
   Plus, Search, Filter, Trash2, Edit3, 
   Eye, Clock, Save, 
   Users, Loader2, Calendar, ArrowRight, X, AlertTriangle, Upload,
-  Smartphone, MessageSquare
+  Smartphone, MessageSquare, MoreVertical, ArrowLeft, Share2
 } from 'lucide-react';
 import { AppState, Promotion } from '../types';
 import { api, addLog } from '../services/supabase';
@@ -149,7 +149,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   return (
     <>
       <div className="space-y-6 animate-in fade-in duration-500">
-        {/* Busca e Filtros - Melhorado para Mobile */}
+        {/* Busca e Filtros */}
         <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
             <div className="relative w-full lg:flex-1 group">
@@ -244,7 +244,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
         </div>
       </div>
 
-      {/* Modal de Edição/Criação - Estilo Mobile Otimizado */}
+      {/* Modal de Edição/Criação */}
       {isModalOpen && (
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300"
@@ -336,7 +336,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
         </div>
       )}
 
-      {/* Modal de Preview Mobile - Melhorado */}
+      {/* Modal de Preview Mobile - Simulação Telegram Ultra Realista */}
       {previewPromo && (
         <div 
           className="fixed inset-0 z-[110] flex items-center justify-center p-0 md:p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300 cursor-pointer overflow-y-auto"
@@ -346,56 +346,103 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             className="relative w-full max-w-sm flex flex-col items-center py-4 md:py-10 cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Legend for Closing */}
             <div className="mb-4 text-white/40 text-[10px] font-black uppercase tracking-widest animate-pulse">
-              Toque fora para sair
+              Toque fora para sair do preview
             </div>
 
-            {/* Smartphone Shell - Escalonado para Mobile */}
-            <div className="w-[280px] sm:w-[320px] h-[580px] sm:h-[640px] bg-slate-900 rounded-[2.5rem] sm:rounded-[3rem] border-[6px] sm:border-[8px] border-slate-800 shadow-2xl overflow-hidden flex flex-col relative shrink-0">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 sm:w-32 h-5 sm:h-6 bg-slate-800 rounded-b-2xl z-20"></div>
-              <div className="bg-slate-800 h-8 sm:h-10 flex items-center justify-between px-6 sm:px-8 shrink-0">
-                <span className="text-white/50 text-[10px] font-bold">12:00</span>
-                <div className="flex gap-1">
-                  <div className="w-2.5 h-2.5 rounded-full border border-white/20 bg-white/20"></div>
+            {/* Smartphone Shell - Telegram Style */}
+            <div className="w-[300px] sm:w-[360px] h-[640px] sm:h-[720px] bg-[#0f1721] rounded-[2.5rem] sm:rounded-[3rem] border-[6px] sm:border-[8px] border-slate-800 shadow-2xl overflow-hidden flex flex-col relative shrink-0">
+              
+              {/* Telegram Header Mockup */}
+              <div className="bg-[#17212b] h-14 flex items-center px-4 gap-4 shrink-0 border-b border-black/20">
+                <ArrowLeft size={20} className="text-white" />
+                <div className="w-9 h-9 rounded-full bg-rose-400 flex items-center justify-center text-white font-bold text-lg">P</div>
+                <div className="flex-1 flex flex-col">
+                  <span className="text-white text-sm font-bold leading-tight">PromoShare</span>
+                  <span className="text-[#64b5f6] text-[10px] font-medium">3 membros</span>
                 </div>
+                <MoreVertical size={20} className="text-white/60" />
               </div>
 
-              <div className="flex-1 bg-[#0e1621] overflow-y-auto p-4 flex flex-col gap-4">
-                <div className="bg-[#182533] p-0.5 rounded-2xl shadow-lg border border-white/5 max-w-[90%] self-start animate-in slide-in-from-left duration-500">
-                  <div className="rounded-xl overflow-hidden">
-                    <img src={previewPromo.imageUrl} alt="Preview" className="w-full h-40 sm:h-48 object-cover" />
-                    <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                      <p className="text-white font-bold leading-tight text-sm sm:text-base">🚀 {previewPromo.title}</p>
-                      <p className="text-[#64b5f6] font-black text-lg sm:text-xl">R$ {previewPromo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                      {previewPromo.coupon && (
-                        <div className="bg-[#242f3d] p-2 sm:p-3 rounded-xl border border-white/5">
-                          <p className="text-white/50 text-[8px] sm:text-[9px] uppercase font-bold tracking-widest mb-1">Cupom</p>
-                          <p className="text-[#ffb74d] font-mono font-black text-base sm:text-lg">{previewPromo.coupon}</p>
-                        </div>
-                      )}
-                      <div className="bg-indigo-600 text-white py-3 rounded-xl text-center font-black text-[10px] sm:text-[11px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">
-                        🔥 COMPRAR AGORA
+              {/* Chat Canvas */}
+              <div className="flex-1 bg-[#0e1621] overflow-y-auto p-2 sm:p-3 flex flex-col gap-4">
+                <div className="bg-[#182533] rounded-2xl shadow-lg border border-white/5 max-w-[92%] self-start animate-in slide-in-from-left duration-500 overflow-hidden relative">
+                  
+                  {/* Message Body - Conforme a imagem enviada */}
+                  <div className="flex flex-col">
+                    {/* Image at Top */}
+                    <div className="w-full aspect-square bg-white flex items-center justify-center">
+                      <img src={previewPromo.imageUrl} alt="Preview" className="max-w-full max-h-full object-contain p-2" />
+                    </div>
+
+                    {/* Text Content */}
+                    <div className="p-3.5 space-y-2 text-[13.5px]">
+                      <p className="text-white font-normal leading-snug">
+                        {previewPromo.title}
+                      </p>
+                      
+                      <div className="space-y-1">
+                        <p className="text-white font-normal">
+                          🔥 R$ {previewPromo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                        
+                        {previewPromo.coupon && (
+                          <p className="text-white font-normal uppercase">
+                            🤑 {previewPromo.coupon}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="pt-2">
+                        <p className="text-white font-normal mb-0.5">🛒 Compre aqui:</p>
+                        <p className="text-[#64b5f6] break-all underline decoration-[#64b5f6]/30">
+                          {previewPromo.link}
+                        </p>
                       </div>
                     </div>
                   </div>
-                  <div className="px-3 pb-2 flex justify-end">
-                    <span className="text-white/30 text-[9px]">12:00 PM</span>
+                  
+                  {/* Timestamp & Share Link Style */}
+                  <div className="px-3 pb-1.5 flex justify-end items-center gap-1">
+                    <span className="text-white/30 text-[10px]">22:13</span>
+                    <div className="flex gap-0.5">
+                      <div className="w-1.5 h-1.5 bg-[#64b5f6] rounded-full scale-50"></div>
+                      <div className="w-1.5 h-1.5 bg-[#64b5f6] rounded-full scale-50 -ml-1"></div>
+                    </div>
+                  </div>
+
+                  {/* Forward Icon Mockup */}
+                  <div className="absolute top-1/2 -right-12 translate-y-[-50%] p-2 bg-[#17212b] rounded-full text-white/40">
+                    <Share2 size={18} />
+                  </div>
+                </div>
+
+                {/* Date Divider */}
+                <div className="flex justify-center my-2">
+                  <div className="bg-black/20 text-white/50 text-[10px] font-bold px-3 py-0.5 rounded-full uppercase">
+                    17 de janeiro
                   </div>
                 </div>
               </div>
 
-              <div className="bg-[#17212b] h-14 sm:h-16 p-2 sm:p-3 flex items-center gap-2 sm:gap-3 shrink-0">
-                <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-slate-800 flex items-center justify-center text-white/20"><Smartphone size={18} /></div>
-                <div className="flex-1 bg-[#0e1621] h-8 sm:h-10 rounded-full px-4 flex items-center text-white/20 text-[10px] sm:text-xs italic truncate">Escrever...</div>
-                <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white"><MessageSquare size={16} /></div>
+              {/* Telegram Input Bar */}
+              <div className="bg-[#17212b] h-14 p-2 flex items-center gap-3 shrink-0">
+                <div className="text-white/40 px-1"><Smartphone size={22} className="opacity-40" /></div>
+                <div className="flex-1 bg-transparent text-white/40 text-[14px] font-medium">
+                  Mensagem
+                </div>
+                <div className="flex items-center gap-4 text-white/50 px-2">
+                  <Share2 size={20} />
+                  <MessageSquare size={20} />
+                  <Smartphone size={20} />
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 text-center space-y-2 px-6">
-              <h3 className="text-white font-black text-lg tracking-tight">Preview Social</h3>
-              <p className="text-white/30 text-[10px] font-medium max-w-xs mx-auto uppercase tracking-widest">
-                Toque em qualquer área escura para sair do simulador
+            <div className="mt-8 text-center px-8">
+              <h3 className="text-white font-black text-lg tracking-tight mb-2">Simulação de Entrega</h3>
+              <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">
+                Telegram Messenger Interface
               </p>
             </div>
           </div>
