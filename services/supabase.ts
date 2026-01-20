@@ -25,10 +25,10 @@ export const addLog = (method: string, status: 'SUCCESS' | 'ERROR' | 'INFO' | 'C
 const handleSupabaseError = (error: any, method: string) => {
   console.error(`Error in ${method}:`, error);
   const message = error.message || 'Erro inesperado no Supabase';
-  const friendlyMessage = error.code === 'PGRST204' 
-    ? 'Erro de compatibilidade com o banco de dados (coluna não encontrada).' 
+  const friendlyMessage = error.code === 'PGRST204'
+    ? 'Erro de compatibilidade com o banco de dados (coluna não encontrada).'
     : message;
-    
+
   addLog(method, 'ERROR', { ...error, friendlyMessage });
   return new Error(friendlyMessage);
 };
@@ -92,7 +92,7 @@ export const api = {
     ]);
 
     if (offersRes.error) throw handleSupabaseError(offersRes.error, 'fetchOffers');
-    
+
     // Tratamento de buscas opcionais (lidando graciosamente se as tabelas ainda não existirem)
     const promotions = (offersRes.data || []).map(mapPromoFromDB);
     const groups = (groupsRes.data || []).map((g: any) => ({
@@ -123,7 +123,7 @@ export const api = {
    */
   async uploadImage(file: File): Promise<string> {
     addLog('uploadImage', 'INFO', { file: file.name });
-    
+
     // Gera um nome único para o arquivo
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -149,9 +149,9 @@ export const api = {
   /**
    * PASSO 2: Salva os dados na tabela 'offers' incluindo a 'image_url'
    */
-  async savePromotion(promo: Promotion): Promise<Promotion> {
+  async savePromotion(promo: Promotion, allGroups: Group[] = []): Promise<Promotion> {
     addLog('savePromotion', 'INFO', { title: promo.title });
-    
+
     const payload = mapPromoToDB(promo);
     const { data, error } = await supabase
       .from('offers')
@@ -160,8 +160,56 @@ export const api = {
       .single();
 
     if (error) throw handleSupabaseError(error, 'savePromotion');
-    
+
     addLog('savePromotion', 'SUCCESS', data.id);
+
+    // Disparar Webhook
+    try {
+      const webhookPayload = mapPromoFromDB(data);
+      // Garantir que os grupos selecionados sejam enviados, pois não estão na tabela 'offers' do banco, mas estão no objeto local
+      webhookPayload.targetGroupIds = promo.targetGroupIds;
+
+      addLog('triggerWebhook', 'INFO', { url: 'https://76.13.66.108.sslip.io/webhook/promoshare' });
+
+      await fetch('https://76.13.66.108.sslip.io/webhook/promoshare', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'a3f9c2e87b4d1a6e9f0c5b72e4d8a1c3f6b0e9d7a2c4f8b5e1d6a9c0b7e4f2'
+        },
+        body: JSON.stringify({
+          id: data.id,
+          title: promo.title,
+          price: promo.price,
+          link: promo.link,
+          cupom: promo.coupon || null,
+          image_url: promo.imageUrl,
+          category: null,
+          target_groups: promo.targetGroupIds
+            .map(gid => allGroups.find(g => g.id === gid)?.apiIdentifier)
+            .filter(Boolean),
+          target_details: promo.targetGroupIds
+            .map(gid => {
+              const g = allGroups.find(g => g.id === gid);
+              return g ? {
+                api_identifier: g.apiIdentifier,
+                name: g.name,
+                platform: g.platform
+              } : null;
+            })
+            .filter(Boolean),
+          timestamp: new Date().toISOString(),
+          app: "PromoShare"
+        })
+      });
+
+      addLog('triggerWebhook', 'SUCCESS', 'Webhook enviado com sucesso');
+    } catch (webhookError: any) {
+      console.error('Erro ao enviar webhook:', webhookError);
+      addLog('triggerWebhook', 'ERROR', webhookError.message);
+      // Não lançamos erro aqui para não impedir o fluxo principal de salvamento
+    }
+
     return mapPromoFromDB(data);
   },
 

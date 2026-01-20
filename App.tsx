@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { 
-  Tag, 
-  Send, 
-  Users, 
-  LogOut, 
+import {
+  Tag,
+  Send,
+  Users,
+  LogOut,
   TrendingUp,
   Terminal,
   X,
@@ -17,7 +17,6 @@ import { User, AppState } from './types';
 import { api, debugLogs, supabase, addLog } from './services/supabase';
 import PromotionsPage from './components/PromotionsPage';
 import GroupsPage from './components/GroupsPage';
-import CategoriesPage from './components/CategoriesPage';
 import Login from './components/Login';
 
 const App: React.FC = () => {
@@ -48,7 +47,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session?.user) {
         const { data: profile } = await supabase
           .from('users')
@@ -127,7 +126,7 @@ const App: React.FC = () => {
     <HashRouter>
       <div className={`flex flex-col lg:flex-row h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300 overflow-hidden`}>
         <Sidebar user={state.user} onLogout={handleLogout} />
-        
+
         <main className="flex-1 overflow-y-auto relative flex flex-col pb-20 lg:pb-0">
           <header className="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-8 py-3 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-2">
@@ -136,15 +135,15 @@ const App: React.FC = () => {
               </div>
               <h1 className="text-lg md:text-xl font-black text-slate-800 dark:text-white tracking-tighter">PromoShare</h1>
             </div>
-            
+
             <div className="flex items-center gap-2 md:gap-4">
-              <button 
+              <button
                 onClick={toggleTheme}
                 className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-90"
               >
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
-              <button 
+              <button
                 onClick={() => setShowDebug(!showDebug)}
                 className={`p-2 rounded-xl transition-all active:scale-90 ${showDebug ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
               >
@@ -164,7 +163,6 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/promotions" element={<PromotionsPage state={state} setState={setState} />} />
               <Route path="/groups" element={<GroupsPage state={state} setState={setState} />} />
-              <Route path="/categories" element={<CategoriesPage state={state} setState={setState} />} />
               <Route path="/" element={<Navigate to="/promotions" />} />
             </Routes>
           </div>
@@ -185,11 +183,10 @@ const BottomNav: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLog
   const navItems = [
     { label: 'Promos', icon: Send, path: '/promotions' },
     { label: 'Canais', icon: Users, path: '/groups' },
-    { label: 'Nichos', icon: Tag, path: '/categories', adminOnly: true },
     { label: 'Sair', icon: LogOut, path: 'logout', action: onLogout }
   ];
 
-  const filteredNav = navItems.filter(item => !item.adminOnly || user.role === 'ADMIN');
+  const filteredNav = navItems;
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-4 py-2 pb-6 flex items-center justify-around z-50 backdrop-blur-lg bg-opacity-90">
@@ -207,11 +204,10 @@ const BottomNav: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLog
           <Link
             key={item.path}
             to={item.path}
-            className={`flex flex-col items-center gap-1 p-2 transition-all ${
-              isActive(item.path) 
-                ? 'text-indigo-600 dark:text-indigo-400 scale-110' 
-                : 'text-slate-400'
-            }`}
+            className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive(item.path)
+              ? 'text-indigo-600 dark:text-indigo-400 scale-110'
+              : 'text-slate-400'
+              }`}
           >
             <item.icon size={22} className={isActive(item.path) ? 'fill-indigo-600/10' : ''} />
             <span className={`text-[10px] font-black uppercase tracking-widest ${isActive(item.path) ? 'opacity-100' : 'opacity-60'}`}>{item.label}</span>
@@ -267,10 +263,9 @@ const Sidebar: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogou
   const navItems = [
     { label: 'Promoções', icon: Send, path: '/promotions' },
     { label: 'Grupos', icon: Users, path: '/groups' },
-    { label: 'Categorias', icon: Tag, path: '/categories', adminOnly: true },
   ];
 
-  const filteredNav = navItems.filter(item => !item.adminOnly || user.role === 'ADMIN');
+  const filteredNav = navItems;
 
   return (
     <aside className="w-64 bg-slate-900 dark:bg-black text-slate-300 flex flex-col hidden lg:flex border-r border-slate-800 shrink-0">
@@ -286,11 +281,10 @@ const Sidebar: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogou
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-4 px-5 py-4 rounded-2xl transition-all ${
-                isActive(item.path) 
-                  ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' 
-                  : 'hover:bg-white/5 hover:text-white'
-              }`}
+              className={`flex items-center gap-4 px-5 py-4 rounded-2xl transition-all ${isActive(item.path)
+                ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20'
+                : 'hover:bg-white/5 hover:text-white'
+                }`}
             >
               <item.icon size={22} className={isActive(item.path) ? 'fill-white/10' : ''} />
               <span className="font-bold text-sm uppercase tracking-widest">{item.label}</span>

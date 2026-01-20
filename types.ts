@@ -37,7 +37,7 @@ export interface Promotion {
   link: string;
   coupon?: string;
   imageUrl: string;
-  mainCategoryId: string;
+  mainCategoryId: string | null;
   secondaryCategoryIds: string[];
   status: PromoStatus;
   scheduledAt?: string;
