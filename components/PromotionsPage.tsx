@@ -23,7 +23,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null); // Novo estado para confirmação
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const filteredPromos = useMemo(() => {
     let list = state.promotions;
@@ -53,8 +53,12 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingPromo?.title || !editingPromo?.price || !editingPromo?.mainCategoryId) {
-      alert('Por favor, preencha o título, preço e categoria.');
+    
+    const defaultCategory = state.categories.length > 0 ? state.categories[0].id : 'geral';
+    const categoryToUse = editingPromo?.mainCategoryId || defaultCategory;
+
+    if (!editingPromo?.title || !editingPromo?.price) {
+      alert('Por favor, preencha o título e preço.');
       return;
     }
 
@@ -65,7 +69,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       price: Number(editingPromo.price),
       link: editingPromo.link || '',
       imageUrl: editingPromo.imageUrl || 'https://picsum.photos/400/300',
-      mainCategoryId: editingPromo.mainCategoryId,
+      mainCategoryId: categoryToUse,
       secondaryCategoryIds: editingPromo.secondaryCategoryIds || [],
       status: editingPromo.status || 'SENT',
       coupon: editingPromo.coupon,
@@ -77,10 +81,8 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
     };
 
     try {
-      // 1. Salva no Supabase
       const savedPromo = await api.savePromotion(promoToSave);
       
-      // Atualiza o estado da UI imediatamente
       setState(prev => {
         const isUpdate = editingPromo.id && !editingPromo.id.toString().startsWith('temp-');
         const newList = isUpdate
@@ -90,7 +92,6 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
         return { ...prev, promotions: newList };
       });
 
-      // 2. Envia para o Webhook automaticamente
       if (promoToSave.targetGroupIds.length > 0) {
         try {
           addLog('Automation', 'INFO', 'Iniciando envio automático para webhook...');
@@ -98,7 +99,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
           addLog('Automation', 'SUCCESS', 'Promoção salva e enviada com sucesso.');
         } catch (webhookError: any) {
           console.error('Falha no webhook automático:', webhookError);
-          alert(`Oferta salva no banco, mas o envio para o Webhook falhou.\n\nERRO: ${webhookError.message}\n\nDICA: Se o erro for "Failed to fetch", você provavelmente está tentando chamar um endereço HTTP de um site HTTPS (o que é bloqueado pelo navegador). Use HTTPS no seu Webhook (ngrok, tunnel, proxy, etc).`);
+          alert(`Oferta salva no banco, mas o envio para o Webhook falhou.\n\nERRO: ${webhookError.message}`);
         }
       } else {
         addLog('Automation', 'INFO', 'Nenhum canal selecionado, salvando apenas no banco.');
@@ -133,17 +134,16 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const deletePromo = async (id: string) => {
     addLog('deletePromo', 'INFO', `Iniciando tentativa de exclusão da promoção ID: ${id}`);
 
-    // Implementa a lógica de confirmação em dois cliques
     if (confirmDeleteId !== id) {
       addLog('deletePromo', 'INFO', `Primeiro clique para exclusão de ID: ${id}. Aguardando confirmação.`);
       setConfirmDeleteId(id);
-      setTimeout(() => setConfirmDeleteId(null), 3000); // Reseta o estado após 3 segundos
+      setTimeout(() => setConfirmDeleteId(null), 3000);
       return;
     }
 
     addLog('deletePromo', 'INFO', `Usuário confirmou a exclusão para ID: ${id}`);
     setDeletingId(id);
-    setConfirmDeleteId(null); // Limpa o estado de confirmação imediatamente
+    setConfirmDeleteId(null);
 
     try {
       addLog('deletePromo', 'INFO', `Chamando api.deletePromotion para ID: ${id}`);
@@ -184,7 +184,13 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             />
           </div>
           <button 
-            onClick={() => { setEditingPromo({ mainCategoryId: state.categories[0]?.id || state.categories[0]?.name || '', targetGroupIds: [] }); setIsModalOpen(true); }}
+            onClick={() => { 
+              setEditingPromo({ 
+                mainCategoryId: state.categories[0]?.id || state.categories[0]?.name || '', 
+                targetGroupIds: state.groups.map(g => g.id) 
+              }); 
+              setIsModalOpen(true); 
+            }}
             className="w-full lg:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all font-black uppercase tracking-widest shadow-xl shadow-indigo-600/30 active:scale-95 shrink-0"
           >
             <Plus size={22} />
@@ -248,7 +254,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             const category = state.categories.find(c => c.name === promo.mainCategoryId || c.id === promo.mainCategoryId);
             const isDeleting = deletingId === promo.id;
             const isSending = sendingId === promo.id;
-            const isConfirming = confirmDeleteId === promo.id; // Verifica se está em estado de confirmação
+            const isConfirming = confirmDeleteId === promo.id;
             const creationDate = promo.createdAt ? new Date(promo.createdAt) : new Date();
 
             return (
@@ -345,100 +351,93 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
 
       {/* Modais */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-800">
-            <div className="px-12 py-10 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
+            {/* Header Fixo */}
+            <div className="px-12 py-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0 z-20">
               <div>
                 <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">
                   {editingPromo?.id && !editingPromo.id.toString().startsWith('temp-') ? 'Editar Promo' : 'Publicar'}
                 </h2>
                 <p className="text-slate-500 dark:text-slate-500 font-black text-[10px] mt-1 uppercase tracking-widest">Painel de Curadoria de Conteúdo</p>
               </div>
-              <button onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="text-slate-400 hover:text-red-600 dark:hover:text-red-500 p-4 bg-white dark:bg-slate-800 rounded-[2rem] shadow-lg transition-all active:scale-90 border border-slate-100 dark:border-slate-700">
+              <button onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="text-slate-400 hover:text-red-600 dark:hover:text-red-500 p-4 bg-slate-50 dark:bg-slate-800 rounded-[2rem] shadow-sm transition-all active:scale-90 border border-slate-100 dark:border-slate-700">
                 <X size={28} />
               </button>
             </div>
             
-            <form onSubmit={handleSave} className="p-12 grid grid-cols-1 md:grid-cols-2 gap-10 overflow-y-auto">
-              <div className="space-y-8">
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 group-focus-within:text-indigo-500 transition-colors">Título Comercial*</label>
-                  <input required type="text" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold dark:text-white" placeholder="iPhone 15 Pro 128GB" value={editingPromo?.title || ''} onChange={e => setEditingPromo(prev => ({ ...prev, title: e.target.value }))} />
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="group">
-                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Valor (R$)*</label>
-                    <input required type="number" step="0.01" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black dark:text-white text-xl" placeholder="0,00" value={editingPromo?.price || ''} onChange={e => setEditingPromo(prev => ({ ...prev, price: Number(e.target.value) }))} />
+            {/* Corpo Scrollável */}
+            <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="space-y-8">
+                    <div className="group">
+                      <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 group-focus-within:text-indigo-500 transition-colors">Título Comercial*</label>
+                      <input required type="text" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold dark:text-white" placeholder="iPhone 15 Pro 128GB" value={editingPromo?.title || ''} onChange={e => setEditingPromo(prev => ({ ...prev, title: e.target.value }))} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="group">
+                        <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Valor (R$)*</label>
+                        <input required type="number" step="0.01" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black dark:text-white text-xl" placeholder="0,00" value={editingPromo?.price || ''} onChange={e => setEditingPromo(prev => ({ ...prev, price: Number(e.target.value) }))} />
+                      </div>
+                      <div className="group">
+                        <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Cupom</label>
+                        <input type="text" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter" placeholder="Cupom..." value={editingPromo?.coupon || ''} onChange={e => setEditingPromo(prev => ({ ...prev, coupon: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="group">
+                      <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Link da Oferta*</label>
+                      <input required type="url" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white font-medium text-xs" placeholder="https://..." value={editingPromo?.link || ''} onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} />
+                    </div>
                   </div>
-                  <div className="group">
-                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Cupom</label>
-                    <input type="text" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter" placeholder="Cupom..." value={editingPromo?.coupon || ''} onChange={e => setEditingPromo(prev => ({ ...prev, coupon: e.target.value }))} />
-                  </div>
-                </div>
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Link da Oferta*</label>
-                  <input required type="url" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white font-medium text-xs" placeholder="https://..." value={editingPromo?.link || ''} onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} />
-                </div>
+                  
+                  <div className="space-y-8">
+                    <div className="group">
+                      <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Link da Imagem</label>
+                      <input type="url" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white text-xs" placeholder="https://..." value={editingPromo?.imageUrl || ''} onChange={e => setEditingPromo(prev => ({ ...prev, imageUrl: e.target.value }))} />
+                    </div>
 
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Users size={14} className="text-indigo-500" />
-                    Canais de Destino (Onde enviar)*
-                  </label>
-                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-inner">
-                    {state.groups.length > 0 ? state.groups.map(group => (
-                      <label key={group.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800 shadow-sm group/item">
-                        <input 
-                          type="checkbox" 
-                          className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 cursor-pointer"
-                          checked={editingPromo?.targetGroupIds?.includes(group.id) || false}
-                          onChange={e => {
-                            const current = editingPromo?.targetGroupIds || [];
-                            const updated = e.target.checked 
-                              ? [...current, group.id] 
-                              : current.filter(id => id !== group.id);
-                            setEditingPromo(prev => ({ ...prev, targetGroupIds: updated }));
-                          }}
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-tighter group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">{group.name}</span>
-                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase opacity-70">{group.platform}</span>
-                        </div>
+                    <div className="group">
+                      <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <Users size={14} className="text-indigo-500" />
+                        Canais de Destino (Onde enviar)*
                       </label>
-                    )) : (
-                      <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black py-6 italic">Cadastre Canais primeiro na aba "Grupos".</p>
-                    )}
+                      <div className="grid grid-cols-1 gap-2 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-inner">
+                        {state.groups.length > 0 ? state.groups.map(group => (
+                          <label key={group.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800 shadow-sm group/item">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 cursor-pointer"
+                              checked={editingPromo?.targetGroupIds?.includes(group.id) || false}
+                              onChange={e => {
+                                const current = editingPromo?.targetGroupIds || [];
+                                const updated = e.target.checked 
+                                  ? [...current, group.id] 
+                                  : current.filter(id => id !== group.id);
+                                setEditingPromo(prev => ({ ...prev, targetGroupIds: updated }));
+                              }}
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-tighter group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">{group.name}</span>
+                              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase opacity-70">{group.platform}</span>
+                            </div>
+                          </label>
+                        )) : (
+                          <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black py-6 italic">Cadastre Canais primeiro na aba "Grupos".</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-              
-              <div className="space-y-8">
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Link da Imagem</label>
-                  <input type="url" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white text-xs" placeholder="https://..." value={editingPromo?.imageUrl || ''} onChange={e => setEditingPromo(prev => ({ ...prev, imageUrl: e.target.value }))} />
-                </div>
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Categoria*</label>
-                  <select required className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black appearance-none cursor-pointer dark:text-white uppercase tracking-widest" value={editingPromo?.mainCategoryId || ''} onChange={e => setEditingPromo(prev => ({ ...prev, mainCategoryId: e.target.value }))}>
-                    <option value="">Selecione...</option>
-                    {state.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                
-                <div className="p-6 bg-indigo-50 dark:bg-indigo-950/20 rounded-[1.5rem] border border-indigo-100 dark:border-indigo-900/50 flex items-start gap-4">
-                  <LayoutGrid className="text-indigo-600 dark:text-indigo-400 shrink-0" size={20} />
-                  <p className="text-[11px] text-indigo-700 dark:text-indigo-300 font-bold leading-relaxed">
-                    <strong>Importante:</strong> Se estiver usando n8n/webhook local sem HTTPS, o navegador pode bloquear o envio. Certifique-se de usar uma URL segura para o Webhook.
-                  </p>
-                </div>
 
-                <div className="pt-10 flex justify-end gap-5 border-t border-slate-100 dark:border-slate-800">
-                  <button type="button" onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="px-10 py-4 text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl transition-all">Descartar</button>
-                  <button type="submit" disabled={isSaving} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-3xl hover:bg-indigo-700 flex items-center gap-4 shadow-2xl shadow-indigo-600/40 transition-all active:scale-95 disabled:opacity-50">
-                    {isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
-                    Finalizar e Enviar
-                  </button>
-                </div>
+              {/* Footer Fixo */}
+              <div className="shrink-0 px-12 py-8 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-5 z-20">
+                <button type="button" onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="px-10 py-4 text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl transition-all">Descartar</button>
+                <button type="submit" disabled={isSaving} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-3xl hover:bg-indigo-700 flex items-center gap-4 shadow-2xl shadow-indigo-600/40 transition-all active:scale-95 disabled:opacity-50">
+                  {isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
+                  Finalizar e Enviar
+                </button>
               </div>
             </form>
           </div>

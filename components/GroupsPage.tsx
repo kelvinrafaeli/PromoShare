@@ -179,91 +179,93 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col transition-colors">
-            <div className="px-10 py-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/40">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col transition-colors max-h-[90vh]">
+            <div className="px-10 py-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0">
               <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Conectar Canal</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-all active:scale-90">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-all active:scale-90">
                 <X size={24} />
               </button>
             </div>
             
-            <form onSubmit={handleSave} className="p-10 space-y-8 overflow-y-auto max-h-[75vh] bg-white dark:bg-slate-900">
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  type="button"
-                  onClick={() => setEditingGroup(prev => ({ ...prev, platform: 'TELEGRAM' }))}
-                  className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border-2 transition-all group ${
-                    editingGroup?.platform === 'TELEGRAM' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 grayscale hover:grayscale-0'
-                  }`}
-                >
-                  <MessageSquare size={40} className={editingGroup?.platform === 'TELEGRAM' ? 'text-blue-500' : 'text-slate-400'} />
-                  <span className={`font-black text-xs uppercase tracking-widest ${editingGroup?.platform === 'TELEGRAM' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-500'}`}>Telegram</span>
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setEditingGroup(prev => ({ ...prev, platform: 'WHATSAPP' }))}
-                  className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border-2 transition-all group ${
-                    editingGroup?.platform === 'WHATSAPP' ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 grayscale hover:grayscale-0'
-                  }`}
-                >
-                  <Smartphone size={40} className={editingGroup?.platform === 'WHATSAPP' ? 'text-green-500' : 'text-slate-400'} />
-                  <span className={`font-black text-xs uppercase tracking-widest ${editingGroup?.platform === 'WHATSAPP' ? 'text-green-700 dark:text-green-400' : 'text-slate-500'}`}>WhatsApp</span>
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 group-focus-within:text-indigo-500 transition-colors">Identificação do Grupo*</label>
-                  <input 
-                    required
-                    type="text" 
-                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-800 dark:text-white" 
-                    placeholder="Ex: Ofertas VIP Tech"
-                    value={editingGroup?.name || ''}
-                    onChange={e => setEditingGroup(prev => ({ ...prev, name: e.target.value }))}
-                  />
+            <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar bg-white dark:bg-slate-900">
+                <div className="grid grid-cols-2 gap-4">
+                  <button 
+                    type="button"
+                    onClick={() => setEditingGroup(prev => ({ ...prev, platform: 'TELEGRAM' }))}
+                    className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border-2 transition-all group ${
+                      editingGroup?.platform === 'TELEGRAM' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 grayscale hover:grayscale-0'
+                    }`}
+                  >
+                    <MessageSquare size={40} className={editingGroup?.platform === 'TELEGRAM' ? 'text-blue-500' : 'text-slate-400'} />
+                    <span className={`font-black text-xs uppercase tracking-widest ${editingGroup?.platform === 'TELEGRAM' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-500'}`}>Telegram</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setEditingGroup(prev => ({ ...prev, platform: 'WHATSAPP' }))}
+                    className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border-2 transition-all group ${
+                      editingGroup?.platform === 'WHATSAPP' ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 grayscale hover:grayscale-0'
+                    }`}
+                  >
+                    <Smartphone size={40} className={editingGroup?.platform === 'WHATSAPP' ? 'text-green-500' : 'text-slate-400'} />
+                    <span className={`font-black text-xs uppercase tracking-widest ${editingGroup?.platform === 'WHATSAPP' ? 'text-green-700 dark:text-green-400' : 'text-slate-500'}`}>WhatsApp</span>
+                  </button>
                 </div>
 
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">API Chat ID / Número Celular*</label>
-                  <input 
-                    required
-                    type="text" 
-                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono font-bold text-indigo-600 dark:text-indigo-400" 
-                    placeholder="-100xxxx ou 55119xxx"
-                    value={editingGroup?.apiIdentifier || ''}
-                    onChange={e => setEditingGroup(prev => ({ ...prev, apiIdentifier: e.target.value }))}
-                  />
-                </div>
+                <div className="space-y-6">
+                  <div className="group">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 group-focus-within:text-indigo-500 transition-colors">Identificação do Grupo*</label>
+                    <input 
+                      required
+                      type="text" 
+                      className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-800 dark:text-white" 
+                      placeholder="Ex: Ofertas VIP Tech"
+                      value={editingGroup?.name || ''}
+                      onChange={e => setEditingGroup(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
 
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Filtrar por Categorias (Vínculo)</label>
-                  <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-inner">
-                    {state.categories.length > 0 ? state.categories.map(cat => (
-                      <label key={cat.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800 shadow-sm group/cat">
-                        <input 
-                          type="checkbox" 
-                          className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 cursor-pointer"
-                          checked={editingGroup?.categories?.includes(cat.id) || editingGroup?.categories?.includes(cat.name) || false}
-                          onChange={e => {
-                            const current = editingGroup?.categories || [];
-                            const updated = e.target.checked 
-                              ? [...current, cat.name] 
-                              : current.filter(name => name !== cat.name);
-                            setEditingGroup(prev => ({ ...prev, categories: updated }));
-                          }}
-                        />
-                        <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tighter group-hover/cat:text-indigo-600 transition-colors">{cat.name}</span>
-                      </label>
-                    )) : (
-                      <p className="col-span-2 text-center text-[10px] text-slate-400 uppercase font-black py-4">Nenhuma categoria cadastrada</p>
-                    )}
+                  <div className="group">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">API Chat ID / Número Celular*</label>
+                    <input 
+                      required
+                      type="text" 
+                      className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono font-bold text-indigo-600 dark:text-indigo-400" 
+                      placeholder="-100xxxx ou 55119xxx"
+                      value={editingGroup?.apiIdentifier || ''}
+                      onChange={e => setEditingGroup(prev => ({ ...prev, apiIdentifier: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="group">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Filtrar por Categorias (Vínculo)</label>
+                    <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-inner">
+                      {state.categories.length > 0 ? state.categories.map(cat => (
+                        <label key={cat.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800 shadow-sm group/cat">
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 cursor-pointer"
+                            checked={editingGroup?.categories?.includes(cat.id) || editingGroup?.categories?.includes(cat.name) || false}
+                            onChange={e => {
+                              const current = editingGroup?.categories || [];
+                              const updated = e.target.checked 
+                                ? [...current, cat.name] 
+                                : current.filter(name => name !== cat.name);
+                              setEditingGroup(prev => ({ ...prev, categories: updated }));
+                            }}
+                          />
+                          <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tighter group-hover/cat:text-indigo-600 transition-colors">{cat.name}</span>
+                        </label>
+                      )) : (
+                        <p className="col-span-2 text-center text-[10px] text-slate-400 uppercase font-black py-4">Nenhuma categoria cadastrada</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-5 pt-8 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex justify-end gap-5 px-10 py-8 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
