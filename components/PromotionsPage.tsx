@@ -1,11 +1,11 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
-  Plus, Search, Trash2, Edit3, Eye, Clock, Save, 
-  Loader2, Upload, X, ImageIcon, Share2, ArrowLeft, MoreVertical, Smartphone, MessageSquare, CheckSquare, Square
+  Plus, Search, Trash2, Eye, Save, 
+  Loader2, Upload, X, ImageIcon, Share2, ArrowLeft, MoreVertical, Smartphone, SquareCheck, Link, Edit3
 } from 'lucide-react';
 import { AppState, Promotion } from '../types';
-import { api, addLog } from '../services/supabase';
+import { api } from '../services/supabase';
 
 interface PromotionsPageProps {
   state: AppState;
@@ -77,7 +77,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       const savedPromo = await api.savePromotion(promoToSave);
       
       // Atualiza o estado local para refletir a mudança imediatamente
-      savedPromo.targetGroupIds = selectedGroups; // Garante que a UI local tenha os grupos
+      savedPromo.targetGroupIds = selectedGroups;
 
       setState(prev => ({
         ...prev,
@@ -126,47 +126,58 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
         </div>
         <button 
           onClick={() => { setEditingPromo({}); setIsModalOpen(true); }}
-          className="w-full md:w-auto px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95"
+          className="w-full md:w-auto px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center gap-2"
         >
+          <Plus size={20} />
           Nova Promoção
         </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredPromos.map((promo) => (
-          <div key={promo.id} className="bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm group">
-            <div className="relative h-48 bg-slate-100 dark:bg-slate-800">
-              {promo.imageUrl ? (
-                <img src={promo.imageUrl} className="w-full h-full object-cover" alt="" />
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-300"><ImageIcon size={40} /></div>
-              )}
-            </div>
-            <div className="p-5">
-              <h4 className="font-bold text-slate-800 dark:text-white line-clamp-2 mb-4">{promo.title}</h4>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xl font-black text-indigo-600">R$ {promo.price.toFixed(2)}</span>
-                <span className="text-[10px] font-black uppercase px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-400">{promo.mainCategoryId || 'Geral'}</span>
+        {filteredPromos.map((promo) => {
+          // Busca o nome da categoria para não exibir o UUID
+          const categoryName = state.categories.find(c => c.id === promo.mainCategoryId)?.name || 'Geral';
+          
+          return (
+            <div key={promo.id} className="bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm group">
+              <div className="relative h-48 bg-slate-100 dark:bg-slate-800">
+                {promo.imageUrl ? (
+                  <img src={promo.imageUrl} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-300"><ImageIcon size={40} /></div>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => setPreviewPromo(promo)} className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:bg-indigo-50 transition-colors">
-                  <Eye size={14} /> Preview
-                </button>
-                <button onClick={() => handleDelete(promo.id)} className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors">
-                  <Trash2 size={14} /> Excluir
-                </button>
+              <div className="p-5">
+                <h4 className="font-bold text-slate-800 dark:text-white line-clamp-2 mb-4 h-12">{promo.title}</h4>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xl font-black text-indigo-600">R$ {promo.price.toFixed(2)}</span>
+                  <span className="text-[10px] font-black uppercase px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-400">
+                    {categoryName}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setPreviewPromo(promo)} className="flex-1 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:bg-indigo-50 transition-colors" title="Visualizar">
+                    <Eye size={14} />
+                  </button>
+                  <button onClick={() => { setEditingPromo(promo); setIsModalOpen(true); }} className="flex-1 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors" title="Editar">
+                    <Edit3 size={14} />
+                  </button>
+                  <button onClick={() => handleDelete(promo.id)} className="flex-1 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors" title="Excluir">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800 my-auto">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800 my-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h2 className="text-xl font-black uppercase tracking-tight">Nova Oferta</h2>
-              <button onClick={() => setIsModalOpen(false)}><X size={24} className="text-slate-400" /></button>
+              <h2 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white">Nova Oferta</h2>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={24} className="text-slate-400" /></button>
             </div>
             
             <form onSubmit={handleSave} className="p-8 space-y-8">
@@ -177,7 +188,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                 <input 
                   required 
                   placeholder="Ex: Smartphone Samsung Galaxy S23 Ultra 5G" 
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all" 
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all dark:text-white" 
                   value={editingPromo?.title || ''} 
                   onChange={e => setEditingPromo(prev => ({ ...prev, title: e.target.value }))} 
                 />
@@ -203,6 +214,20 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                     {isUploading && <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 flex items-center justify-center z-10"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>}
                   </div>
                   <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageUpload} />
+                  
+                  {/* Campo de URL da Imagem */}
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                      <Link size={16} />
+                    </div>
+                    <input 
+                      type="text"
+                      placeholder="Ou cole a URL da imagem aqui..." 
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white transition-all border border-transparent focus:border-indigo-500" 
+                      value={editingPromo?.imageUrl || ''} 
+                      onChange={e => setEditingPromo(prev => ({ ...prev, imageUrl: e.target.value }))} 
+                    />
+                  </div>
                 </div>
 
                 {/* Coluna da Direita: Dados e Grupos */}
@@ -234,10 +259,10 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                   </div>
 
                   <div className="space-y-2">
-                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Link de Afiliado</label>
+                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Link Produto</label>
                      <input 
                       placeholder="https://..." 
-                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-sm font-medium text-blue-500 focus:ring-2 focus:ring-blue-500 outline-none" 
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-sm font-medium text-blue-500 focus:ring-2 focus:ring-blue-500 outline-none dark:text-white" 
                       value={editingPromo?.link || ''} 
                       onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} 
                     />
@@ -256,7 +281,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                       </button>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-2">
                       {state.groups.map(group => {
                         const isSelected = selectedGroups.includes(group.id);
                         return (
@@ -266,11 +291,11 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                             className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
                               isSelected 
                                 ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' 
-                                : 'border-transparent bg-white dark:bg-slate-800 hover:border-slate-200'
+                                : 'border-transparent bg-white dark:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
                             }`}
                           >
                             <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-transparent'}`}>
-                              <CheckSquare size={14} />
+                              <SquareCheck size={14} />
                             </div>
                             <div className="overflow-hidden">
                               <p className={`text-xs font-bold truncate ${isSelected ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400'}`}>{group.name}</p>
