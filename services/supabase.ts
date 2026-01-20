@@ -115,6 +115,37 @@ export const api = {
     };
   },
 
+  async uploadImage(file: File): Promise<string> {
+    addLog('uploadImage', 'INFO', { fileName: file.name, size: file.size });
+    
+    // Gera um nome único para o arquivo
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    // 1. Upload para o bucket 'promo-images'
+    // IMPORTANTE: Você precisa criar este bucket no Supabase e torná-lo PÚBLICO
+    const { error: uploadError } = await supabase.storage
+      .from('promo-images')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw handleSupabaseError(uploadError, 'uploadImage');
+    }
+
+    // 2. Obter URL pública
+    const { data } = supabase.storage
+      .from('promo-images')
+      .getPublicUrl(filePath);
+
+    if (!data.publicUrl) {
+      throw new Error('Não foi possível gerar a URL pública da imagem.');
+    }
+
+    addLog('uploadImage', 'SUCCESS', { url: data.publicUrl });
+    return data.publicUrl;
+  },
+
   async savePromotion(promo: Promotion): Promise<Promotion> {
     addLog('savePromotion', 'INFO', { title: promo.title });
     const { data, error } = await supabase

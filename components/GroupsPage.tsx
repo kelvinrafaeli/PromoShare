@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, Smartphone, MessageSquare, 
   Trash2, Edit3, Hash, LayoutGrid, CheckCircle2, Users, Loader2, AlertTriangle, X
@@ -18,6 +18,16 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Bloquear scroll do body quando modal estiver aberto
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isModalOpen]);
 
   const filteredGroups = useMemo(() => {
     if (state.user?.role === 'ADMIN') return state.groups;
@@ -189,7 +199,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
             </div>
             
             <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar bg-white dark:bg-slate-900">
+              <div className="flex-1 overflow-y-auto p-10 space-y-8 bg-white dark:bg-slate-900">
                 <div className="grid grid-cols-2 gap-4">
                   <button 
                     type="button"
