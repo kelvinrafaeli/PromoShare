@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Promotion, Group, Category, User } from '../types';
 
