@@ -23,9 +23,14 @@ export const addLog = (method: string, status: 'SUCCESS' | 'ERROR' | 'INFO' | 'C
 };
 
 const handleSupabaseError = (error: any, method: string) => {
+  console.error(`Error in ${method}:`, error);
   const message = error.message || 'Erro inesperado no Supabase';
-  addLog(method, 'ERROR', { ...error, friendlyMessage: message });
-  return new Error(message);
+  const friendlyMessage = error.code === 'PGRST204' 
+    ? 'Erro de compatibilidade com o banco de dados (coluna não encontrada).' 
+    : message;
+    
+  addLog(method, 'ERROR', { ...error, friendlyMessage });
+  return new Error(friendlyMessage);
 };
 
 // Mapeamento exato com a sua tabela 'offers'
@@ -40,7 +45,7 @@ const mapPromoFromDB = (p: any): Promotion => ({
   secondaryCategoryIds: [],
   status: 'SENT',
   createdAt: p.created_at,
-  ownerId: p.owner_id || 'system',
+  ownerId: p.owner_id || 'system', // Mantém leitura com fallback, caso a coluna seja criada futuramente
   targetGroupIds: []
 });
 
@@ -52,7 +57,8 @@ const mapPromoToDB = (p: Promotion) => {
     cupom: p.coupon,           // Grava na coluna 'cupom'
     image_url: p.imageUrl,     // Grava na coluna 'image_url'
     category: p.mainCategoryId, // Grava na coluna 'category'
-    owner_id: p.ownerId || 'system'
+    // REMOVIDO owner_id: A coluna não existe na tabela 'offers' atual do banco de dados
+    // owner_id: p.ownerId || 'system' 
   };
   // Se for uma promoção existente, incluímos o ID para o upsert funcionar como atualização
   if (p.id && !p.id.startsWith('temp-')) {

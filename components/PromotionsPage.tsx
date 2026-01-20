@@ -70,8 +70,16 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validação de campos obrigatórios
     if (!editingPromo?.title || !editingPromo?.price) {
       alert('Preencha título e preço.');
+      return;
+    }
+    
+    // Validação da categoria
+    if (!editingPromo?.mainCategoryId) {
+      alert('Selecione uma categoria para a promoção.');
       return;
     }
 
@@ -80,7 +88,8 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       const promoToSave = {
         ...editingPromo,
         id: editingPromo.id || `temp-${Date.now()}`,
-        targetGroupIds: selectedGroups, // Salva os grupos selecionados
+        targetGroupIds: selectedGroups,
+        ownerId: state.user?.id, // Garante que o ID do usuário seja passado
         status: 'SENT'
       } as Promotion;
 
@@ -99,7 +108,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       setIsModalOpen(false);
       setEditingPromo(null);
     } catch (error: any) {
-      alert(error.message);
+      alert(`Erro ao salvar: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -276,6 +285,30 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                       value={editingPromo?.link || ''} 
                       onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} 
                     />
+                  </div>
+
+                  {/* Seleção de Categoria */}
+                  <div className="space-y-3">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Categoria*</label>
+                    <div className="flex flex-wrap gap-2">
+                      {state.categories.map(cat => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setEditingPromo(prev => ({ ...prev, mainCategoryId: cat.id }))}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${
+                            editingPromo?.mainCategoryId === cat.id
+                              ? `${cat.color} text-white border-transparent shadow-md scale-105`
+                              : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
+                          }`}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                      {state.categories.length === 0 && (
+                         <span className="text-xs text-red-400">Nenhuma categoria encontrada.</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Seleção de Grupos */}
