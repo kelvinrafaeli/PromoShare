@@ -1,9 +1,10 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
-  Plus, Search, Filter, Send, Trash2, Edit3, 
+  Plus, Search, Filter, Trash2, Edit3, 
   Eye, Clock, Save, 
-  Users, Loader2, Calendar, ArrowRight, X, AlertTriangle, Upload
+  Users, Loader2, Calendar, ArrowRight, X, AlertTriangle, Upload,
+  Smartphone, MessageSquare
 } from 'lucide-react';
 import { AppState, Promotion } from '../types';
 import { api, addLog } from '../services/supabase';
@@ -22,20 +23,32 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const [previewPromo, setPreviewPromo] = useState<Promotion | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [sendingId, setSendingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Escutar tecla ESC para fechar modais
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsModalOpen(false);
+        setEditingPromo(null);
+        setPreviewPromo(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Bloquear scroll do body quando modal estiver aberto
   useEffect(() => {
-    if (isModalOpen) {
+    if (isModalOpen || previewPromo) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [isModalOpen]);
+  }, [isModalOpen, previewPromo]);
 
   const filteredPromos = useMemo(() => {
     let list = state.promotions;
@@ -67,7 +80,6 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validação básica
     if (!file.type.startsWith('image/')) {
       alert('Por favor, selecione apenas arquivos de imagem.');
       return;
@@ -81,7 +93,6 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       alert(`Erro no upload da imagem: ${error.message}`);
     } finally {
       setIsUploading(false);
-      // Limpa o input para permitir selecionar o mesmo arquivo novamente se necessário
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -136,8 +147,6 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
           console.error('Falha no webhook automático:', webhookError);
           alert(`Oferta salva no banco, mas o envio para o Webhook falhou.\n\nERRO: ${webhookError.message}`);
         }
-      } else {
-        addLog('Automation', 'INFO', 'Nenhum canal selecionado, salvando apenas no banco.');
       }
       
       setIsModalOpen(false);
@@ -150,50 +159,25 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
     }
   };
 
-  const handleSend = async (promo: Promotion) => {
-    if (promo.targetGroupIds.length === 0) {
-      alert('Esta promoção não tem canais de destino selecionados. Edite-a primeiro.');
-      return;
-    }
-    setSendingId(promo.id);
-    try {
-      await api.sendToWebhook(promo);
-      alert('Envio manual processado com sucesso!');
-    } catch (error: any) {
-      alert(`Falha no envio: ${error.message}`);
-    } finally {
-      setSendingId(null);
-    }
-  };
-
   const deletePromo = async (id: string) => {
-    addLog('deletePromo', 'INFO', `Iniciando tentativa de exclusão da promoção ID: ${id}`);
-
     if (confirmDeleteId !== id) {
-      addLog('deletePromo', 'INFO', `Primeiro clique para exclusão de ID: ${id}. Aguardando confirmação.`);
       setConfirmDeleteId(id);
       setTimeout(() => setConfirmDeleteId(null), 3000);
       return;
     }
 
-    addLog('deletePromo', 'INFO', `Usuário confirmou a exclusão para ID: ${id}`);
     setDeletingId(id);
     setConfirmDeleteId(null);
 
     try {
-      addLog('deletePromo', 'INFO', `Chamando api.deletePromotion para ID: ${id}`);
       await api.deletePromotion(id);
-      addLog('deletePromo', 'SUCCESS', `Promoção ID: ${id} excluída do banco de dados.`);
       setState(prev => ({
         ...prev,
         promotions: prev.promotions.filter(p => p.id !== id)
       }));
-      addLog('deletePromo', 'SUCCESS', `Estado da UI atualizado para exclusão da promoção ID: ${id}.`);
     } catch (error: any) {
-      addLog('deletePromo', 'ERROR', `Erro ao excluir promoção ID: ${id}: ${error.message || error}`);
       alert(`Erro ao excluir promoção: ${error.message || 'Erro desconhecido'}`);
     } finally {
-      addLog('deletePromo', 'INFO', `Finalizado operação de exclusão para promoção ID: ${id}.`);
       setDeletingId(null);
     }
   };
@@ -223,7 +207,6 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
               onClick={() => { 
                 setEditingPromo({ 
                   mainCategoryId: state.categories[0]?.id || state.categories[0]?.name || '', 
-                  // AQUI: Seleciona todos os grupos automaticamente usando o estado local
                   targetGroupIds: state.groups.map(g => g.id) 
                 }); 
                 setIsModalOpen(true); 
@@ -288,21 +271,17 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             </div>
           ) : (
             filteredPromos.map((promo) => {
-              const category = state.categories.find(c => c.name === promo.mainCategoryId || c.id === promo.mainCategoryId);
               const isDeleting = deletingId === promo.id;
-              const isSending = sendingId === promo.id;
               const isConfirming = confirmDeleteId === promo.id;
               const creationDate = promo.createdAt ? new Date(promo.createdAt) : new Date();
 
               return (
-                <div key={promo.id} className={`bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 group transition-all duration-500 hover:shadow-2xl hover:translate-y-[-8px] hover:border-indigo-100 dark:hover:border-indigo-900 ${isDeleting ? 'opacity-50 pointer-events-none scale-95' : ''}`}>
-                  <div className="relative h-60 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                <div key={promo.id} className={`bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 group transition-all duration-500 hover:shadow-2xl hover:translate-y-[-8px] hover:border-indigo-100 dark:hover:border-indigo-900 flex flex-col h-full ${isDeleting ? 'opacity-50 pointer-events-none scale-95' : ''}`}>
+                  <div className="relative h-60 overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
                     <img src={promo.imageUrl} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" alt={promo.title} />
                     
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
                     
-                    {/* Badge de categoria removido aqui */}
-
                     <div className="absolute bottom-5 left-5 z-10 flex flex-col gap-1.5">
                       <span className="text-[9px] font-black text-white/80 uppercase tracking-widest drop-shadow-md">Data do Post</span>
                       <div className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-2xl text-[11px] font-black shadow-2xl border border-white/20">
@@ -314,66 +293,68 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                     </div>
                   </div>
 
-                  <div className="p-7 space-y-6">
-                    <div>
+                  <div className="p-7 flex flex-col flex-1">
+                    <div className="flex-1">
                       <h4 className="font-bold text-slate-800 dark:text-white line-clamp-2 leading-tight h-10 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300 tracking-tight">{promo.title}</h4>
                       <div className="flex items-center justify-between mt-6">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Preço Promo</span>
-                          <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
-                            <span className="text-base font-extrabold mr-1">R$</span> 
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 truncate">Preço Promo</span>
+                          <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tighter truncate">
+                            <span className="text-sm font-extrabold mr-1">R$</span> 
                             {promo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </p>
                         </div>
-                        <span className="text-[10px] font-mono font-black text-slate-400 dark:text-slate-600 bg-slate-50 dark:bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-100 dark:border-slate-700 shadow-inner">#{promo.id}</span>
+                        <span className="text-[10px] font-mono font-black text-slate-400 dark:text-slate-600 bg-slate-50 dark:bg-slate-800/80 px-2 py-1.5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-inner shrink-0">#{promo.id}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                      <Users size={14} className="text-indigo-600 dark:text-indigo-400" />
-                      <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 mt-6">
+                      <Users size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                      <span className="text-[10px] font-black text-slate-50 dark:text-slate-400 uppercase tracking-widest truncate">
                         {promo.targetGroupIds.length === 0 ? 'Sem canais' : `${promo.targetGroupIds.length} ${promo.targetGroupIds.length === 1 ? 'canal' : 'canais'}`}
                       </span>
                     </div>
 
-                    <div className="pt-5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex gap-1.5">
-                        <button onClick={() => setPreviewPromo(promo)} className="p-3 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-2xl transition-all active:scale-90" title="Ver Preview Mobile">
-                          <Eye size={20} />
+                    <div className="pt-5 mt-6 border-t border-slate-100 dark:border-slate-800">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => setPreviewPromo(promo)} 
+                          className="flex items-center justify-center gap-1.5 p-2.5 sm:p-3 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-xl transition-all active:scale-95 border border-slate-100 dark:border-slate-800 font-black text-[9px] uppercase tracking-widest"
+                        >
+                          <Eye size={16} className="shrink-0" />
+                          <span className="truncate">Preview</span>
                         </button>
-                        <button onClick={() => { setEditingPromo(promo); setIsModalOpen(true); }} className="p-3 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/40 rounded-2xl transition-all active:scale-90" title="Editar Informações">
-                          <Edit3 size={20} />
+                        <button 
+                          onClick={() => { setEditingPromo(promo); setIsModalOpen(true); }} 
+                          className="flex items-center justify-center gap-1.5 p-2.5 sm:p-3 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/40 rounded-xl transition-all active:scale-95 border border-slate-100 dark:border-slate-800 font-black text-[9px] uppercase tracking-widest"
+                        >
+                          <Edit3 size={16} className="shrink-0" />
+                          <span className="truncate">Editar</span>
                         </button>
                         <button 
                           disabled={isDeleting} 
                           onClick={() => deletePromo(promo.id)} 
-                          className={`p-3 rounded-2xl transition-all flex items-center justify-center gap-1.5 font-black text-[10px] uppercase tracking-tighter ${
+                          className={`col-span-2 flex items-center justify-center gap-2 p-2.5 sm:p-3 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest border truncate ${
                             isConfirming 
-                              ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-600/30' 
-                              : 'text-slate-400 dark:text-slate-600 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                          }`} 
-                          title="Excluir Oferta"
+                              ? 'bg-red-600 text-white border-red-600 animate-pulse shadow-lg shadow-red-600/30' 
+                              : 'text-slate-400 dark:text-slate-600 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border-slate-100 dark:border-slate-800'
+                          }`}
                         >
                           {isDeleting ? (
-                            <Loader2 size={20} className="animate-spin" />
+                            <Loader2 size={16} className="animate-spin shrink-0" />
                           ) : isConfirming ? (
                             <>
-                              <AlertTriangle size={16} />
-                              Confirmar?
+                              <AlertTriangle size={14} className="shrink-0" />
+                              <span className="truncate">Confirmar Exclusão?</span>
                             </>
                           ) : (
-                            <Trash2 size={20} />
+                            <>
+                              <Trash2 size={16} className="shrink-0" />
+                              <span className="truncate">Excluir Oferta</span>
+                            </>
                           )}
                         </button>
                       </div>
-                      <button 
-                        onClick={() => handleSend(promo)}
-                        disabled={isSending}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl text-[11px] font-black hover:bg-indigo-600 dark:hover:bg-indigo-700 transition-all shadow-xl active:scale-95 uppercase tracking-widest min-w-[120px]"
-                      >
-                        {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                        {isSending ? 'Enviando' : 'Enviar'}
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -383,80 +364,76 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
         </div>
       </div>
 
-      {/* Modais fora do container animado */}
+      {/* Modal de Edição/Criação */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-800">
-            {/* Header Fixo */}
-            <div className="px-12 py-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0 z-20">
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300"
+          onClick={() => { setIsModalOpen(false); setEditingPromo(null); }}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-8 sm:px-12 py-6 sm:py-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0 z-20">
               <div>
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">
                   {editingPromo?.id && !editingPromo.id.toString().startsWith('temp-') ? 'Editar Promo' : 'Publicar'}
                 </h2>
                 <p className="text-slate-500 dark:text-slate-500 font-black text-[10px] mt-1 uppercase tracking-widest">Painel de Curadoria de Conteúdo</p>
               </div>
-              <button onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="text-slate-400 hover:text-red-600 dark:hover:text-red-500 p-4 bg-slate-50 dark:bg-slate-800 rounded-[2rem] shadow-sm transition-all active:scale-90 border border-slate-100 dark:border-slate-700">
-                <X size={28} />
+              <button onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="text-slate-400 hover:text-red-600 dark:hover:text-red-500 p-3 sm:p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl sm:rounded-[2rem] shadow-sm transition-all active:scale-90 border border-slate-100 dark:border-slate-700">
+                <X size={24} />
               </button>
             </div>
             
-            {/* Corpo Scrollável */}
             <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  <div className="space-y-8">
+              <div className="flex-1 overflow-y-auto p-8 sm:p-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-10">
+                  <div className="space-y-6 sm:space-y-8">
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 group-focus-within:text-indigo-500 transition-colors">Título Comercial*</label>
-                      <input required type="text" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold dark:text-white" placeholder="iPhone 15 Pro 128GB" value={editingPromo?.title || ''} onChange={e => setEditingPromo(prev => ({ ...prev, title: e.target.value }))} />
+                      <input required type="text" className="w-full px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.2rem] sm:rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold dark:text-white" placeholder="iPhone 15 Pro 128GB" value={editingPromo?.title || ''} onChange={e => setEditingPromo(prev => ({ ...prev, title: e.target.value }))} />
                     </div>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-2 gap-4 sm:gap-6">
                       <div className="group">
                         <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Valor (R$)*</label>
-                        <input required type="number" step="0.01" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black dark:text-white text-xl" placeholder="0,00" value={editingPromo?.price || ''} onChange={e => setEditingPromo(prev => ({ ...prev, price: Number(e.target.value) }))} />
+                        <input required type="number" step="0.01" className="w-full px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.2rem] sm:rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black dark:text-white text-lg sm:text-xl" placeholder="0,00" value={editingPromo?.price || ''} onChange={e => setEditingPromo(prev => ({ ...prev, price: Number(e.target.value) }))} />
                       </div>
                       <div className="group">
                         <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Cupom</label>
-                        <input type="text" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter" placeholder="Cupom..." value={editingPromo?.coupon || ''} onChange={e => setEditingPromo(prev => ({ ...prev, coupon: e.target.value }))} />
+                        <input type="text" className="w-full px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.2rem] sm:rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter" placeholder="Cupom..." value={editingPromo?.coupon || ''} onChange={e => setEditingPromo(prev => ({ ...prev, coupon: e.target.value }))} />
                       </div>
                     </div>
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Link da Oferta*</label>
-                      <input required type="url" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white font-medium text-xs" placeholder="https://..." value={editingPromo?.link || ''} onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} />
+                      <input required type="url" className="w-full px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.2rem] sm:rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white font-medium text-xs" placeholder="https://..." value={editingPromo?.link || ''} onChange={e => setEditingPromo(prev => ({ ...prev, link: e.target.value }))} />
                     </div>
                   </div>
                   
-                  <div className="space-y-8">
+                  <div className="space-y-6 sm:space-y-8">
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Link da Imagem / Upload</label>
-                      <div className="flex gap-3">
-                        <input type="url" className="flex-1 px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white text-xs" placeholder="https://..." value={editingPromo?.imageUrl || ''} onChange={e => setEditingPromo(prev => ({ ...prev, imageUrl: e.target.value }))} />
+                      <div className="flex gap-2 sm:gap-3">
+                        <input type="url" className="flex-1 px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.2rem] sm:rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all dark:text-white text-xs" placeholder="https://..." value={editingPromo?.imageUrl || ''} onChange={e => setEditingPromo(prev => ({ ...prev, imageUrl: e.target.value }))} />
                         
-                        <input 
-                          type="file" 
-                          ref={fileInputRef}
-                          className="hidden" 
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                        />
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                         <button 
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
                           disabled={isUploading}
-                          className="px-4 bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-[1.5rem] border-2 border-slate-100 dark:border-slate-700 hover:bg-indigo-100 dark:hover:bg-slate-700 transition-all flex items-center justify-center disabled:opacity-50"
-                          title="Fazer Upload de Imagem"
+                          className="px-3 sm:px-4 bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-[1.2rem] sm:rounded-[1.5rem] border-2 border-slate-100 dark:border-slate-700 hover:bg-indigo-100 dark:hover:bg-slate-700 transition-all flex items-center justify-center disabled:opacity-50"
                         >
                           {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
                         </button>
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-2 ml-2">Cole o link direto ou faça upload de uma imagem.</p>
                     </div>
 
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                         <Users size={14} className="text-indigo-500" />
-                        Canais de Destino (Onde enviar)*
+                        Canais de Destino*
                       </label>
-                      <div className="grid grid-cols-1 gap-2 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-inner">
+                      <div className="grid grid-cols-1 gap-2 p-3 sm:p-4 bg-slate-50 dark:bg-slate-800/60 rounded-[1.2rem] sm:rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-inner">
                         {state.groups.length > 0 ? state.groups.map(group => (
                           <label key={group.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-50 dark:border-slate-800 shadow-sm group/item">
                             <input 
@@ -465,9 +442,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                               checked={editingPromo?.targetGroupIds?.includes(group.id) || false}
                               onChange={e => {
                                 const current = editingPromo?.targetGroupIds || [];
-                                const updated = e.target.checked 
-                                  ? [...current, group.id] 
-                                  : current.filter(id => id !== group.id);
+                                const updated = e.target.checked ? [...current, group.id] : current.filter(id => id !== group.id);
                                 setEditingPromo(prev => ({ ...prev, targetGroupIds: updated }));
                               }}
                             />
@@ -485,15 +460,107 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                 </div>
               </div>
 
-              {/* Footer Fixo */}
-              <div className="shrink-0 px-8 py-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-5 z-20">
-                <button type="button" onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="px-10 py-4 text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl transition-all">Descartar</button>
-                <button type="submit" disabled={isSaving} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-3xl hover:bg-indigo-700 flex items-center gap-4 shadow-2xl shadow-indigo-600/40 transition-all active:scale-95 disabled:opacity-50">
-                  {isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
-                  Finalizar e Enviar
+              <div className="shrink-0 px-6 sm:px-8 py-5 sm:py-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3 sm:gap-5 z-20">
+                <button type="button" onClick={() => { setIsModalOpen(false); setEditingPromo(null); }} className="px-6 sm:px-10 py-3 sm:py-4 text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-[1.2rem] sm:rounded-3xl transition-all text-xs">Descartar</button>
+                <button type="submit" disabled={isSaving} className="px-8 sm:px-12 py-3 sm:py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-[1.2rem] sm:rounded-3xl hover:bg-indigo-700 flex items-center gap-3 sm:gap-4 shadow-2xl shadow-indigo-600/40 transition-all active:scale-95 disabled:opacity-50 text-xs">
+                  {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                  Salvar e Enviar
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Preview Mobile */}
+      {previewPromo && (
+        <div 
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300 cursor-pointer overflow-y-auto"
+          onClick={() => setPreviewPromo(null)}
+        >
+          <div 
+            className="relative w-full max-w-sm flex flex-col items-center py-10 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Botão de fechar mais acessível e visível dentro da área segura */}
+            <button 
+              onClick={() => setPreviewPromo(null)}
+              className="absolute top-2 right-4 sm:-right-16 sm:top-0 p-3 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all border border-white/20 z-[120]"
+            >
+              <X size={24} />
+            </button>
+
+            {/* Smartphone Shell */}
+            <div className="w-[280px] sm:w-[320px] h-[560px] sm:h-[640px] bg-slate-900 rounded-[2.5rem] sm:rounded-[3rem] border-[6px] sm:border-[8px] border-slate-800 shadow-2xl overflow-hidden flex flex-col relative shrink-0">
+              {/* Notch */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 sm:w-32 h-5 sm:h-6 bg-slate-800 rounded-b-2xl z-20"></div>
+              
+              {/* App Status Bar Mockup */}
+              <div className="bg-slate-800 h-8 sm:h-10 flex items-center justify-between px-6 sm:px-8 shrink-0">
+                <span className="text-white/50 text-[10px] font-bold">12:00</span>
+                <div className="flex gap-1">
+                  <div className="w-2.5 h-2.5 rounded-full border border-white/20"></div>
+                  <div className="w-2.5 h-2.5 rounded-full border border-white/20 bg-white/20"></div>
+                </div>
+              </div>
+
+              {/* Chat View */}
+              <div className="flex-1 bg-[#0e1621] overflow-y-auto p-4 flex flex-col gap-4">
+                <div className="bg-[#182533] p-0.5 rounded-2xl shadow-lg border border-white/5 max-w-[90%] self-start animate-in slide-in-from-left duration-500">
+                  {/* Message Content */}
+                  <div className="rounded-xl overflow-hidden">
+                    <img src={previewPromo.imageUrl} alt="Preview" className="w-full h-40 sm:h-48 object-cover" />
+                    <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                      <p className="text-white font-bold leading-tight text-sm sm:text-base">
+                        🚀 {previewPromo.title}
+                      </p>
+                      <p className="text-[#64b5f6] font-black text-lg sm:text-xl">
+                        R$ {previewPromo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      {previewPromo.coupon && (
+                        <div className="bg-[#242f3d] p-2 sm:p-3 rounded-xl border border-white/5">
+                          <p className="text-white/50 text-[8px] sm:text-[9px] uppercase font-bold tracking-widest mb-1">Cupom de Desconto</p>
+                          <p className="text-[#ffb74d] font-mono font-black text-base sm:text-lg">{previewPromo.coupon}</p>
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-2 pt-1 sm:pt-2">
+                        <div className="bg-indigo-600 text-white py-2.5 sm:py-3 rounded-xl text-center font-black text-[10px] sm:text-[11px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+                          🔥 COMPRAR AGORA
+                        </div>
+                        <p className="text-white/40 text-[8px] sm:text-[9px] text-center italic">Clique no botão acima para abrir a oferta</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-3 pb-2 flex justify-end">
+                    <span className="text-white/30 text-[9px]">12:00 PM</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Input Bar Mockup */}
+              <div className="bg-[#17212b] h-14 sm:h-16 p-2 sm:p-3 flex items-center gap-2 sm:gap-3 shrink-0">
+                <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-slate-800 flex items-center justify-center text-white/20">
+                  <Smartphone size={18} />
+                </div>
+                <div className="flex-1 bg-[#0e1621] h-8 sm:h-10 rounded-full px-4 flex items-center text-white/20 text-[10px] sm:text-xs italic truncate">
+                  Visualizando preview...
+                </div>
+                <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                  <MessageSquare size={16} />
+                </div>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="mt-6 sm:mt-8 text-center space-y-1 sm:space-y-2 px-6">
+              <h3 className="text-white font-black text-lg sm:text-xl tracking-tight flex items-center justify-center gap-3">
+                <Smartphone size={20} className="text-indigo-400" />
+                Simulador Mobile
+              </h3>
+              <p className="text-white/50 text-[10px] sm:text-xs font-medium max-w-xs mx-auto">
+                Clique em qualquer lugar fora para fechar ou use a tecla ESC.
+              </p>
+            </div>
           </div>
         </div>
       )}
