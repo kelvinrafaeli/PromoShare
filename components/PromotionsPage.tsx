@@ -37,6 +37,16 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
     }
   }, [isModalOpen, editingPromo?.id, state.groups]);
 
+  // Bloquear scroll do body quando modal ou preview estiver aberto
+  useEffect(() => {
+    if (isModalOpen || previewPromo) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isModalOpen, previewPromo]);
+
   const filteredPromos = useMemo(() => {
     let list = state.promotions;
     if (searchTerm) list = list.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -173,7 +183,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800 my-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <h2 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white">Nova Oferta</h2>
@@ -324,7 +334,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
 
       {/* Preview Telegram */}
       {previewPromo && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4" onClick={() => setPreviewPromo(null)}>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4" onClick={() => setPreviewPromo(null)}>
           <div className="w-full max-w-sm bg-[#0f1721] rounded-[3rem] border-[8px] border-slate-800 overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
              <div className="bg-[#17212b] p-4 flex items-center gap-4 text-white">
                 <ArrowLeft size={20} />

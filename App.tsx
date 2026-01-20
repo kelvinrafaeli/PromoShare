@@ -129,7 +129,7 @@ const App: React.FC = () => {
         <Sidebar user={state.user} onLogout={handleLogout} />
         
         <main className="flex-1 overflow-y-auto relative flex flex-col pb-20 lg:pb-0">
-          <header className="sticky top-0 z-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-8 py-3 flex items-center justify-between shadow-sm">
+          <header className="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-8 py-3 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-2">
               <div className="lg:hidden bg-indigo-600 p-1.5 rounded-lg text-white">
                 <TrendingUp size={18} />
