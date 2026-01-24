@@ -35,8 +35,10 @@ const handleSupabaseError = (error: any, method: string) => {
 // Mapeamento exato com a sua tabela 'offers'
 const mapPromoFromDB = (p: any): Promotion => ({
   id: p.id.toString(),
+  externalId: p.external_id || undefined,
   title: p.title || '',
   price: parseFloat(p.price) || 0,
+  originalPrice: p.original_price ? parseFloat(p.original_price) : undefined,
   link: p.link || '',
   coupon: p.cupom || '',           // Mapeia coluna 'cupom'
   imageUrl: p.image_url || '',     // Mapeia coluna 'image_url'
@@ -45,19 +47,27 @@ const mapPromoFromDB = (p: any): Promotion => ({
   status: 'SENT',
   createdAt: p.created_at,
   ownerId: p.owner_id || 'system', // Mantém leitura com fallback, caso a coluna seja criada futuramente
-  targetGroupIds: []
+  targetGroupIds: [],
+  seller: p.seller || undefined,
+  freeShipping: p.free_shipping || undefined,
+  installment: p.installment || undefined,
+  extraInfo: p.extra_info || undefined
 });
 
 const mapPromoToDB = (p: Promotion) => {
   const base: any = {
     title: p.title,
     price: p.price,
+    original_price: p.originalPrice,
     link: p.link,
     cupom: p.coupon,           // Grava na coluna 'cupom'
     image_url: p.imageUrl,     // Grava na coluna 'image_url'
     category: p.mainCategoryId, // Grava na coluna 'category'
-    // REMOVIDO owner_id: A coluna não existe na tabela 'offers' atual do banco de dados
-    // owner_id: p.ownerId || 'system' 
+    external_id: p.externalId,
+    seller: p.seller,
+    free_shipping: p.freeShipping,
+    installment: p.installment,
+    extra_info: p.extraInfo
   };
   // Se for uma promoção existente, incluímos o ID para o upsert funcionar como atualização
   if (p.id && !p.id.startsWith('temp-')) {
@@ -180,9 +190,14 @@ export const api = {
           id: data.id,
           title: promo.title,
           price: promo.price,
+          original_price: promo.originalPrice,
           link: promo.link,
           cupom: promo.coupon || null,
           image_url: promo.imageUrl,
+          seller: promo.seller,
+          free_shipping: promo.freeShipping,
+          installment: promo.installment,
+          extra_info: promo.extraInfo,
           category: null,
           target_groups: promo.targetGroupIds
             .map(gid => allGroups.find(g => g.id === gid)?.apiIdentifier)
@@ -291,5 +306,50 @@ export const api = {
   async deleteCategory(id: string) {
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) throw handleSupabaseError(error, 'deleteCategory');
+  },
+
+  async fetchExternalProduct(): Promise<Partial<Promotion>> {
+    const response = await fetch('/external-api/api/products?sitename=thautec&start=0&limit=1', {
+      headers: {
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'pt-BR,pt;q=0.9',
+        'priority': 'u=1, i',
+        'sec-ch-ua': '"Not(A:Brand";v="8", "Chromium";v="144", "Google Chrome";v="144"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'cross-site'
+      }
+    });
+
+    const body = await response.json();
+    if (!body?.data || body.data.length === 0) {
+      throw new Error('Nenhum produto encontrado na API externa.');
+    }
+
+    const product = body.data[0];
+    const attr = product.attributes;
+
+    const parsePrice = (priceStr: string) => {
+      if (!priceStr) return 0;
+      // Remove "R$", spaces, replace "," with "." and remove other non-numeric chars except "."
+      const cleaned = priceStr.replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '');
+      return parseFloat(cleaned) || 0;
+    };
+
+    return {
+      externalId: product.id.toString(),
+      title: attr.title,
+      price: parsePrice(attr.price),
+      originalPrice: parsePrice(attr.price_from),
+      link: attr.link,
+      coupon: attr.coupon,
+      imageUrl: attr.image,
+      seller: attr.seller,
+      freeShipping: attr.free_shipping,
+      installment: attr.installment,
+      extraInfo: attr.extraInfo
+    };
   }
 };

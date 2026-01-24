@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Plus, Search, Trash2, Eye, Save,
-  Loader2, Upload, X, ImageIcon, Share2, ArrowLeft, MoreVertical, Smartphone, SquareCheck, Link, Edit3
+  Loader2, Upload, X, ImageIcon, Share2, ArrowLeft, MoreVertical, Smartphone, SquareCheck, Link, Edit3, RefreshCw
 } from 'lucide-react';
 import { AppState, Promotion } from '../types';
 import { api } from '../services/supabase';
@@ -21,6 +21,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [isUpdatingExternal, setIsUpdatingExternal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Selecionar todos os grupos por padrão ao abrir o modal de nova promoção
@@ -139,13 +140,45 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button
-          onClick={() => { setEditingPromo({}); setIsModalOpen(true); }}
-          className="w-full md:w-auto px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center gap-2"
-        >
-          <Plus size={20} />
-          Nova Promoção
-        </button>
+        <div className="flex w-full md:w-auto gap-2">
+          <button
+            onClick={async () => {
+              setIsUpdatingExternal(true);
+              try {
+                const externalData = await api.fetchExternalProduct();
+
+                // Verifica se já existe uma promoção com este externalId
+                const existing = state.promotions.find(p => p.externalId === externalData.externalId);
+
+                if (existing) {
+                  if (confirm('Este produto já foi importado. Deseja editá-lo?')) {
+                    setEditingPromo(existing);
+                    setIsModalOpen(true);
+                  }
+                } else {
+                  setEditingPromo(externalData);
+                  setIsModalOpen(true);
+                }
+              } catch (error: any) {
+                alert(`Erro ao buscar produto: ${error.message}`);
+              } finally {
+                setIsUpdatingExternal(false);
+              }
+            }}
+            disabled={isUpdatingExternal}
+            className="flex-1 md:w-16 px-4 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 flex items-center justify-center gap-2"
+            title="Sincronizar última oferta"
+          >
+            {isUpdatingExternal ? <Loader2 size={20} className="animate-spin" /> : <RefreshCw size={20} />}
+          </button>
+          <button
+            onClick={() => { setEditingPromo({}); setIsModalOpen(true); }}
+            className="flex-[3] md:w-auto px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center gap-2"
+          >
+            <Plus size={20} />
+            Nova Promoção
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -277,6 +310,39 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Vendedor</label>
+                      <input
+                        placeholder="Ex: Amazon, Magalu..."
+                        className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                        value={editingPromo?.seller || ''}
+                        onChange={e => setEditingPromo(prev => ({ ...prev, seller: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Parcelamento</label>
+                      <input
+                        placeholder="Ex: 10x sem juros"
+                        className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                        value={editingPromo?.installment || ''}
+                        onChange={e => setEditingPromo(prev => ({ ...prev, installment: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <div
+                        onClick={() => setEditingPromo(prev => ({ ...prev, freeShipping: !prev?.freeShipping }))}
+                        className={`w-10 h-6 rounded-full transition-colors relative ${editingPromo?.freeShipping ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                      >
+                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${editingPromo?.freeShipping ? 'left-5' : 'left-1'}`} />
+                      </div>
+                      <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Frete Grátis</span>
+                    </label>
+                  </div>
+
 
 
                   {/* Seleção de Grupos */}
@@ -325,13 +391,12 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                 <button
                   type="button"
                   onClick={() => setPreviewPromo({
+                    ...editingPromo,
                     id: editingPromo?.id || 'preview',
                     title: editingPromo?.title || 'Título de Exemplo',
                     price: editingPromo?.price || 0,
                     imageUrl: editingPromo?.imageUrl || '',
                     link: editingPromo?.link || '#',
-                    coupon: editingPromo?.coupon,
-                    mainCategoryId: editingPromo?.mainCategoryId || null,
                     status: 'DRAFT',
                     ownerId: state.user?.id || 'preview',
                     targetGroupIds: [],
@@ -371,9 +436,16 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                 <img src={previewPromo.imageUrl} className="w-full aspect-square object-cover" />
                 <div className="p-3 space-y-2 text-[14px] text-white">
                   <p>{previewPromo.title}</p>
-                  <p className="font-bold">🔥 R$ {previewPromo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="font-bold">
+                    {previewPromo.originalPrice ? <span className="text-xs line-through opacity-50 mr-2">R$ {previewPromo.originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> : null}
+                    🔥 R$ {previewPromo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  {previewPromo.installment && <p className="text-xs opacity-70">💳 {previewPromo.installment}</p>}
+                  {previewPromo.seller && <p className="text-xs opacity-70">🏪 Vendido por: {previewPromo.seller}</p>}
+                  {previewPromo.freeShipping && <p className="text-xs text-emerald-400">✅ Frete Grátis</p>}
                   {previewPromo.coupon && <p className="uppercase">🤑 Cupom: {previewPromo.coupon}</p>}
                   <p className="text-[#64b5f6] underline break-all">{previewPromo.link}</p>
+                  {previewPromo.extraInfo && <p className="text-[10px] italic opacity-60">{previewPromo.extraInfo}</p>}
                 </div>
               </div>
             </div>

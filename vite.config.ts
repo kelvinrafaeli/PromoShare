@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
+      proxy: {
+        '/external-api': {
+          target: 'https://api.divulgadorinteligente.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/external-api/, ''),
+        },
+      },
     },
     plugins: [react()],
     define: {

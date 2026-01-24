@@ -32,8 +32,10 @@ export interface Group {
 
 export interface Promotion {
   id: string;
+  externalId?: string;
   title: string;
   price: number;
+  originalPrice?: number;
   link: string;
   coupon?: string;
   imageUrl: string;
@@ -46,6 +48,10 @@ export interface Promotion {
   content?: string; // Formatted message
   targetGroupIds: string[];
   createdAt?: string;
+  seller?: string;
+  freeShipping?: boolean;
+  installment?: string;
+  extraInfo?: string;
 }
 
 export interface AutomationRule {
