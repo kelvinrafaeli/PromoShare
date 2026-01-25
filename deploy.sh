@@ -17,10 +17,15 @@ rm -rf dist node_modules package-lock.json # Limpeza
 npm install
 npm run build
 
-# 3. Sobe a infraestrutura com Docker Compose
+# 3. Sobe a infraestrutura com Docker-Compose ou Docker Compose (v2)
 echo "🐳 Subindo containers (Frontend + Backend)..."
-# O --build garante que qualquer mudança no Python ou Nginx seja aplicada
-docker-compose up -d --build
+if command -v docker-compose &> /dev/null
+then
+    docker-compose up -d --build
+else
+    echo "⚠️  docker-compose não encontrado, tentando 'docker compose'..."
+    docker compose up -d --build
+fi
 
 # 4. Limpeza de imagens antigas (opcional)
 docker image prune -f
