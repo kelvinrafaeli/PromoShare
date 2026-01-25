@@ -176,8 +176,20 @@ export const api = {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
+      const promoData = mapPromoFromDB(data);
       const webhookPayload = {
-        ...mapPromoFromDB(data),
+        id: promoData.id,
+        title: promoData.title,
+        price: promoData.price,
+        original_price: promoData.originalPrice,
+        link: promoData.link,
+        cupom: promoData.coupon,
+        image_url: promoData.imageUrl,
+        seller: promoData.seller,
+        free_shipping: promoData.freeShipping,
+        installment: promoData.installment,
+        extra_info: promoData.extraInfo,
+        category: promoData.mainCategoryId,
         target_groups: promo.targetGroupIds
           .map(gid => allGroups.find(g => g.id === gid)?.apiIdentifier)
           .filter(Boolean),
