@@ -19,6 +19,10 @@ npm run build
 
 # 3. Sobe a infraestrutura com Docker-Compose ou Docker Compose (v2)
 echo "🐳 Subindo containers (Frontend + Backend)..."
+
+# Limpa containers antigos para evitar erros de conflito de nome
+docker rm -f promoshare-app promoshare-api 2>/dev/null
+
 if command -v docker-compose &> /dev/null
 then
     docker-compose up -d --build
