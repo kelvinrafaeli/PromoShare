@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Define o caminho do projeto
+DIR="/root/PromoShare"
+
+echo "🚀 Iniciando Deploy (Arquitetura Segura - Python Backend)..."
+
+# 1. Garante que está na pasta certa e atualiza o Git
+cd $DIR
+echo "📥 Baixando atualizações do Git..."
+git fetch --all
+git reset --hard origin/main
+
+# 2. Build do React para ser servido pelo Nginx
+echo "🏗️  Gerando build do React..."
+rm -rf dist node_modules package-lock.json # Limpeza
+npm install
+npm run build
+
+# 3. Sobe a infraestrutura com Docker Compose
+echo "🐳 Subindo containers (Frontend + Backend)..."
+# O --build garante que qualquer mudança no Python ou Nginx seja aplicada
+docker-compose up -d --build
+
+# 4. Limpeza de imagens antigas (opcional)
+docker image prune -f
+
+echo "✅ Sucesso! Sistema atualizado e seguro."
+echo "🌐 Frontend: porta 8091"
+echo "🔐 Backend: porta 8000 (interno)"

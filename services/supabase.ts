@@ -172,56 +172,44 @@ export const api = {
 
     addLog('savePromotion', 'SUCCESS', data.id);
 
-    // Disparar Webhook
+    // Disparar Webhook via Backend Seguro
     try {
-      const webhookPayload = mapPromoFromDB(data);
-      // Garantir que os grupos selecionados sejam enviados, pois não estão na tabela 'offers' do banco, mas estão no objeto local
-      webhookPayload.targetGroupIds = promo.targetGroupIds;
+      const { data: { session } } = await supabase.auth.getSession();
 
-      addLog('triggerWebhook', 'INFO', { url: 'https://76.13.66.108.sslip.io/webhook/promoshare' });
+      const webhookPayload = {
+        ...mapPromoFromDB(data),
+        target_groups: promo.targetGroupIds
+          .map(gid => allGroups.find(g => g.id === gid)?.apiIdentifier)
+          .filter(Boolean),
+        target_details: promo.targetGroupIds
+          .map(gid => {
+            const g = allGroups.find(g => g.id === gid);
+            return g ? {
+              api_identifier: g.apiIdentifier,
+              name: g.name,
+              platform: g.platform
+            } : null;
+          })
+          .filter(Boolean),
+        timestamp: new Date().toISOString(),
+        app: "PromoShare"
+      };
 
-      await fetch('https://76.13.66.108.sslip.io/webhook/promoshare', {
+      addLog('triggerWebhook', 'INFO', { via: 'Python Backend Gateway' });
+
+      await fetch('/api/send-webhook', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'a3f9c2e87b4d1a6e9f0c5b72e4d8a1c3f6b0e9d7a2c4f8b5e1d6a9c0b7e4f2'
+          'Authorization': `Bearer ${session?.access_token || ''}`
         },
-        body: JSON.stringify({
-          id: data.id,
-          title: promo.title,
-          price: promo.price,
-          original_price: promo.originalPrice,
-          link: promo.link,
-          cupom: promo.coupon || null,
-          image_url: promo.imageUrl,
-          seller: promo.seller,
-          free_shipping: promo.freeShipping,
-          installment: promo.installment,
-          extra_info: promo.extraInfo,
-          category: null,
-          target_groups: promo.targetGroupIds
-            .map(gid => allGroups.find(g => g.id === gid)?.apiIdentifier)
-            .filter(Boolean),
-          target_details: promo.targetGroupIds
-            .map(gid => {
-              const g = allGroups.find(g => g.id === gid);
-              return g ? {
-                api_identifier: g.apiIdentifier,
-                name: g.name,
-                platform: g.platform
-              } : null;
-            })
-            .filter(Boolean),
-          timestamp: new Date().toISOString(),
-          app: "PromoShare"
-        })
+        body: JSON.stringify(webhookPayload)
       });
 
-      addLog('triggerWebhook', 'SUCCESS', 'Webhook enviado com sucesso');
+      addLog('triggerWebhook', 'SUCCESS', 'Pedido de envio processado pelo Backend');
     } catch (webhookError: any) {
-      console.error('Erro ao enviar webhook:', webhookError);
+      console.error('Erro ao processar webhook via backend:', webhookError);
       addLog('triggerWebhook', 'ERROR', webhookError.message);
-      // Não lançamos erro aqui para não impedir o fluxo principal de salvamento
     }
 
     return mapPromoFromDB(data);
@@ -309,7 +297,7 @@ export const api = {
   },
 
   async fetchExternalProduct(): Promise<Partial<Promotion>> {
-    const response = await fetch('/external-api/api/products?sitename=thautec&start=0&limit=1', {
+    const response = await fetch('/api/products?sitename=thautec&start=0&limit=1', {
       headers: {
         'accept': 'application/json, text/plain, */*',
         'accept-language': 'pt-BR,pt;q=0.9',

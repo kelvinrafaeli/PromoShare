@@ -17,6 +17,15 @@ import json
 import signal
 import argparse
 import subprocess
+# Fix Windows console encoding
+try:
+    if sys.platform == 'win32':
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+except:
+    pass
+
 from pathlib import Path
 
 AGENT_DIR = Path(".agent")
@@ -53,7 +62,7 @@ def start_server(port=3000):
         try:
             pid = int(PID_FILE.read_text().strip())
             if is_running(pid):
-                print(f"⚠️  Preview already running (PID: {pid})")
+                print(f"Preview already running (PID: {pid})")
                 return
         except:
             pass # Invalid PID file
@@ -62,14 +71,14 @@ def start_server(port=3000):
     cmd = get_start_command(root)
     
     if not cmd:
-        print("❌ No 'dev' or 'start' script found in package.json")
+        print("No 'dev' or 'start' script found in package.json")
         sys.exit(1)
     
     # Add port env var if needed (simple heuristic)
     env = os.environ.copy()
     env["PORT"] = str(port)
     
-    print(f"🚀 Starting preview on port {port}...")
+    print(f"Starting preview on port {port}...")
     
     with open(LOG_FILE, "w") as log:
         process = subprocess.Popen(
@@ -122,12 +131,12 @@ def status_server():
             
     print("\n=== Preview Status ===")
     if running:
-        print(f"✅ Status: Running")
-        print(f"🔢 PID: {pid}")
-        print(f"🌐 URL: {url} (Likely)")
-        print(f"📝 Logs: {LOG_FILE}")
+        print(f"Status: Running")
+        print(f"PID: {pid}")
+        print(f"URL: {url} (Likely)")
+        print(f"Logs: {LOG_FILE}")
     else:
-        print("⚪ Status: Stopped")
+        print("Status: Stopped")
     print("===================\n")
 
 def main():

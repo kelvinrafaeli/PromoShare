@@ -1,0 +1,24 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: promoshare-nginx
+    container_name: promoshare-app
+    restart: always
+    ports:
+      - "8091:80"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+    image: promoshare-backend
+    container_name: promoshare-api
+    restart: always
+    environment:
+      - WEBHOOK_URL=https://76.13.66.108.sslip.io/webhook/promoshare
+      - WEBHOOK_AUTH_TOKEN=a3f9c2e87b4d1a6e9f0c5b72e4d8a1c3f6b0e9d7a2c4f8b5e1d6a9c0b7e4f2
+    expose:
+      - "8000"

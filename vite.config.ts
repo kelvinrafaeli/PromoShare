@@ -9,6 +9,11 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
       proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          // Removido o rewrite porque o backend já espera o prefixo /api
+        },
         '/external-api': {
           target: 'https://api.divulgadorinteligente.com',
           changeOrigin: true,
