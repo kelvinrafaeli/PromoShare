@@ -343,8 +343,8 @@ export const api = {
   },
 
   async fetchExternalProduct(): Promise<Partial<Promotion>> {
-    // Chama diretamente a API externa via proxy do Vite
-    const response = await fetch('/external-api/api/products?sitename=thautec&start=0&limit=1');
+    // Chama o backend que faz proxy para a API externa
+    const response = await fetch('/api/products?sitename=thautec&start=0&limit=1');
     
     if (!response.ok) {
       throw new Error(`Erro na API: ${response.status}`);
