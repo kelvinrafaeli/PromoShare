@@ -92,6 +92,40 @@ export const api = {
     await supabase.auth.signOut();
   },
 
+  async getAutoSendSettings(userEmail: string): Promise<{ enabled: boolean; lastCheckedId: string | null }> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('auto_send_enabled, last_checked_offer_id')
+      .eq('email', userEmail)
+      .single();
+
+    if (error) throw handleSupabaseError(error, 'getAutoSendSettings');
+
+    return {
+      enabled: data?.auto_send_enabled || false,
+      lastCheckedId: data?.last_checked_offer_id || null
+    };
+  },
+
+  async updateAutoSendEnabled(userEmail: string, enabled: boolean): Promise<void> {
+    const { error } = await supabase
+      .from('users')
+      .update({ auto_send_enabled: enabled })
+      .eq('email', userEmail);
+
+    if (error) throw handleSupabaseError(error, 'updateAutoSendEnabled');
+    addLog('updateAutoSendEnabled', 'SUCCESS', { userEmail, enabled });
+  },
+
+  async updateLastCheckedOfferId(userEmail: string, offerId: string | null): Promise<void> {
+    const { error } = await supabase
+      .from('users')
+      .update({ last_checked_offer_id: offerId })
+      .eq('email', userEmail);
+
+    if (error) throw handleSupabaseError(error, 'updateLastCheckedOfferId');
+  },
+
   async fetchAll() {
     // Busca todas as entidades em paralelo para eficiência
     const [offersRes, groupsRes, categoriesRes] = await Promise.all([
@@ -309,21 +343,16 @@ export const api = {
   },
 
   async fetchExternalProduct(): Promise<Partial<Promotion>> {
-    const response = await fetch('/api/products?sitename=thautec&start=0&limit=1', {
-      headers: {
-        'accept': 'application/json, text/plain, */*',
-        'accept-language': 'pt-BR,pt;q=0.9',
-        'priority': 'u=1, i',
-        'sec-ch-ua': '"Not(A:Brand";v="8", "Chromium";v="144", "Google Chrome";v="144"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'cross-site'
-      }
-    });
+    // Chama diretamente a API externa via proxy do Vite
+    const response = await fetch('/external-api/api/products?sitename=thautec&start=0&limit=1');
+    
+    if (!response.ok) {
+      throw new Error(`Erro na API: ${response.status}`);
+    }
 
     const body = await response.json();
+    console.log('📦 Resposta da API externa:', body);
+    
     if (!body?.data || body.data.length === 0) {
       throw new Error('Nenhum produto encontrado na API externa.');
     }
@@ -333,7 +362,6 @@ export const api = {
 
     const parsePrice = (priceStr: string) => {
       if (!priceStr) return 0;
-      // Remove "R$", spaces, replace "," with "." and remove other non-numeric chars except "."
       const cleaned = priceStr.replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '');
       return parseFloat(cleaned) || 0;
     };

@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Plus, Search, Trash2, Eye, Save,
-  Loader2, Upload, X, ImageIcon, Share2, ArrowLeft, MoreVertical, Smartphone, SquareCheck, Link, Edit3, RefreshCw, MessageCircle, Filter, Send
+  Loader2, Upload, X, ImageIcon, Share2, ArrowLeft, MoreVertical, Smartphone, SquareCheck, Link, Edit3, RefreshCw, MessageCircle, Filter, Send, Zap
 } from 'lucide-react';
 import { AppState, Promotion } from '../types';
 import { api } from '../services/supabase';
@@ -24,7 +24,65 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const [isUpdatingExternal, setIsUpdatingExternal] = useState(false);
   const [groupSearch, setGroupSearch] = useState('');
   const [platformFilter, setPlatformFilter] = useState<'all' | 'TELEGRAM' | 'WHATSAPP'>('all');
+  const [autoSendEnabled, setAutoSendEnabled] = useState(false);
+  const [lastCheckedId, setLastCheckedId] = useState<string | null>(null);
+  const [autoSendNotification, setAutoSendNotification] = useState<string | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const hasLoadedSettingsRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Carregar configurações do banco de dados ao montar o componente
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!state.user?.email) return;
+      
+      try {
+        const settings = await api.getAutoSendSettings(state.user.email);
+        setAutoSendEnabled(settings.enabled);
+        setLastCheckedId(settings.lastCheckedId);
+        hasLoadedSettingsRef.current = true;
+        console.log('📥 Configurações carregadas:', settings);
+      } catch (error: any) {
+        console.error('Erro ao carregar configurações:', error.message);
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+
+    loadSettings();
+  }, [state.user?.email]);
+
+  // Salvar estado do auto-send no banco
+  useEffect(() => {
+    const saveAutoSendEnabled = async () => {
+      // Só salva após ter carregado as configurações iniciais
+      if (!state.user?.email || !hasLoadedSettingsRef.current) return;
+      
+      try {
+        await api.updateAutoSendEnabled(state.user.email, autoSendEnabled);
+        console.log('✅ Auto-send atualizado:', autoSendEnabled);
+      } catch (error: any) {
+        console.error('Erro ao salvar configuração:', error.message);
+      }
+    };
+
+    saveAutoSendEnabled();
+  }, [autoSendEnabled, state.user?.email]);
+
+  // Salvar último ID verificado no banco
+  useEffect(() => {
+    const saveLastCheckedId = async () => {
+      if (!state.user?.email || !lastCheckedId || !hasLoadedSettingsRef.current) return;
+      
+      try {
+        await api.updateLastCheckedOfferId(state.user.email, lastCheckedId);
+      } catch (error: any) {
+        console.error('Erro ao salvar último ID:', error.message);
+      }
+    };
+
+    saveLastCheckedId();
+  }, [lastCheckedId, state.user?.id, isLoadingSettings]);
 
   // Selecionar todos os grupos por padrão ao abrir o modal de nova promoção
   useEffect(() => {
@@ -153,34 +211,71 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        
+        {/* Toggle de Envio Automático */}
+        <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
+          {isLoadingSettings ? (
+            <Loader2 size={18} className="text-slate-400 animate-spin" />
+          ) : (
+            <Zap size={18} className={autoSendEnabled ? 'text-emerald-500' : 'text-slate-400'} />
+          )}
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+            Envio Automático
+          </span>
+          <button
+            onClick={() => setAutoSendEnabled(!autoSendEnabled)}
+            disabled={isLoadingSettings}
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              autoSendEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+            } ${isLoadingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={autoSendEnabled ? 'Desativar envio automático' : 'Ativar envio automático'}
+          >
+            <div
+              className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
+                autoSendEnabled ? 'left-7' : 'left-1'
+              }`}
+            />
+          </button>
+        </div>
+
         <div className="flex w-full md:w-auto gap-2">
           <button
             onClick={async () => {
+              if (autoSendEnabled) {
+                alert('Modo automático está ativo. Desative-o primeiro para buscar manualmente.');
+                return;
+              }
+              
               setIsUpdatingExternal(true);
               try {
+                console.log('🔄 Buscando última oferta...');
                 const externalData = await api.fetchExternalProduct();
+                console.log('✅ Produto encontrado:', externalData.title, 'ID:', externalData.externalId);
 
                 // Verifica se já existe uma promoção com este externalId
                 const existing = state.promotions.find(p => p.externalId === externalData.externalId);
 
                 if (existing) {
-                  if (confirm('Este produto já foi importado. Deseja editá-lo?')) {
-                    setEditingPromo(existing);
-                    setIsModalOpen(true);
-                  }
+                  alert(`✅ Esta promoção já foi inserida!\n\n"${existing.title}"`);
                 } else {
+                  // Abre o modal com os dados para edição/envio
                   setEditingPromo(externalData);
                   setIsModalOpen(true);
                 }
               } catch (error: any) {
+                console.error('❌ Erro:', error);
                 alert(`Erro ao buscar produto: ${error.message}`);
               } finally {
                 setIsUpdatingExternal(false);
               }
             }}
-            disabled={isUpdatingExternal}
-            className="flex-1 md:w-16 px-4 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 flex items-center justify-center gap-2"
-            title="Sincronizar última oferta"
+            disabled={isUpdatingExternal || autoSendEnabled}
+            className={`flex-1 md:w-16 px-4 py-3.5 rounded-2xl font-black transition-all flex items-center justify-center gap-2 ${
+              autoSendEnabled 
+                ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-50' 
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95'
+            }`}
+            title={autoSendEnabled ? 'Desativado - Modo automático ativo' : 'Sincronizar última oferta'}
           >
             {isUpdatingExternal ? <Loader2 size={20} className="animate-spin" /> : <RefreshCw size={20} />}
           </button>
@@ -193,6 +288,24 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
           </button>
         </div>
       </div>
+
+      {/* Badge de Status do Envio Automático */}
+      {autoSendEnabled && (
+        <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 p-4 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-500">
+          <div className="relative">
+            <Zap size={20} className="text-emerald-600 dark:text-emerald-400" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+              Modo Automático Ativo (Backend Worker)
+            </p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              O servidor está verificando novas ofertas a cada 1 minuto e enviando automaticamente. Funciona 24/7, mesmo com navegador fechado.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredPromos.map((promo) => {
@@ -529,6 +642,28 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
               <div className="flex-1 text-white/40 text-sm">Mensagem...</div>
               <Share2 size={20} className="text-white/40" />
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Toast de Notificação de Envio Automático */}
+      {autoSendNotification && createPortal(
+        <div className="fixed top-6 right-6 z-[10001] animate-in slide-in-from-right-5 fade-in duration-300">
+          <div className="bg-gradient-to-r from-emerald-500 to-green-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 min-w-[320px] border-2 border-emerald-400">
+            <div className="p-2 bg-white/20 rounded-xl">
+              <Send size={20} />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-sm">Oferta Enviada Automaticamente!</p>
+              <p className="text-xs opacity-90 line-clamp-1">{autoSendNotification}</p>
+            </div>
+            <button
+              onClick={() => setAutoSendNotification(null)}
+              className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>,
         document.body
