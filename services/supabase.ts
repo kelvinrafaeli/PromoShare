@@ -37,8 +37,8 @@ const mapPromoFromDB = (p: any): Promotion => ({
   id: p.id.toString(),
   externalId: p.external_id || undefined,
   title: p.title || '',
-  price: parseFloat(p.price) || 0,
-  originalPrice: p.original_price ? parseFloat(p.original_price) : undefined,
+  price: p.price || '',
+  originalPrice: p.original_price || undefined,
   link: p.link || '',
   coupon: p.cupom || '',           // Mapeia coluna 'cupom'
   imageUrl: p.image_url || '',     // Mapeia coluna 'image_url'
@@ -345,14 +345,14 @@ export const api = {
   async fetchExternalProduct(): Promise<Partial<Promotion>> {
     // Chama o backend que faz proxy para a API externa
     const response = await fetch('/api/products?sitename=thautec&start=0&limit=1');
-    
+
     if (!response.ok) {
       throw new Error(`Erro na API: ${response.status}`);
     }
 
     const body = await response.json();
     console.log('📦 Resposta da API externa:', body);
-    
+
     if (!body?.data || body.data.length === 0) {
       throw new Error('Nenhum produto encontrado na API externa.');
     }
@@ -360,17 +360,11 @@ export const api = {
     const product = body.data[0];
     const attr = product.attributes;
 
-    const parsePrice = (priceStr: string) => {
-      if (!priceStr) return 0;
-      const cleaned = priceStr.replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '');
-      return parseFloat(cleaned) || 0;
-    };
-
     return {
       externalId: product.id.toString(),
       title: attr.title,
-      price: parsePrice(attr.price),
-      originalPrice: parsePrice(attr.price_from),
+      price: attr.price,
+      originalPrice: attr.price_from,
       link: attr.link,
       coupon: attr.coupon,
       imageUrl: attr.image,

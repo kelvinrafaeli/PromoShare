@@ -34,8 +34,8 @@ export interface Promotion {
   id: string;
   externalId?: string;
   title: string;
-  price: number;
-  originalPrice?: number;
+  price: string;
+  originalPrice?: string;
   link: string;
   coupon?: string;
   imageUrl: string;

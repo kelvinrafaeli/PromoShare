@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  AreaChart, Area, PieChart, Pie, Cell 
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 import { AppState } from '../types';
-import { 
-  Send, Users, Tag, CheckCircle2, TrendingUp, AlertCircle, Clock 
+import {
+  Send, Users, Tag, CheckCircle2, TrendingUp, AlertCircle, Clock
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -74,15 +74,15 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               <AreaChart data={activityData}>
                 <defs>
                   <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <Tooltip 
-                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                 />
                 <Area type="monotone" dataKey="count" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" />
               </AreaChart>
@@ -123,7 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             {categoryData.map((entry, index) => (
               <div key={index} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{backgroundColor: COLORS[index % COLORS.length]}}></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
                   <span className="text-slate-600">{entry.name}</span>
                 </div>
                 <span className="font-semibold text-slate-800">{entry.value}</span>
@@ -165,7 +165,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                         {cat?.name || 'Geral'}
                       </span>
                     </td>
-                    <td className="px-8 py-4 font-bold text-slate-900">R$ {promo.price.toFixed(2)}</td>
+                    <td className="px-8 py-4 font-bold text-slate-900">{promo.price}</td>
                     <td className="px-8 py-4">
                       <div className="flex items-center gap-1.5">
                         {promo.status === 'SENT' ? (

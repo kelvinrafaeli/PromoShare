@@ -40,8 +40,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 class PromotionPayload(BaseModel):
     id: str
     title: str
-    price: float
-    original_price: Optional[float] = None
+    price: str
+    original_price: Optional[str] = None
     link: str
     cupom: Optional[str] = None
     image_url: str
@@ -184,24 +184,15 @@ async def check_and_send_new_offers():
                             # Prepara dados da oferta
                             attr = product['attributes']
                             
-                            def parse_price(price_str):
-                                if not price_str:
-                                    return 0
-                                cleaned = price_str.replace('R$', '').replace(' ', '').replace('.', '').replace(',', '.').replace('/[^\\d.]/g', '')
-                                try:
-                                    return float(cleaned)
-                                except:
-                                    return 0
-                            
-                            price = parse_price(attr.get('price', '0'))
-                            original_price = parse_price(attr.get('original_price', '0'))
+                            price = attr.get('price', '')
+                            original_price = attr.get('price_from')
                             
                             # Salva no banco
                             offer_data = {
                                 'external_id': str(external_id),
                                 'title': attr.get('title', ''),
                                 'price': price,
-                                'original_price': original_price if original_price > 0 else None,
+                                'original_price': original_price,
                                 'link': attr.get('link', ''),
                                 'cupom': attr.get('cupom'),
                                 'image_url': attr.get('image', ''),

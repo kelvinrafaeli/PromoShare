@@ -35,7 +35,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   useEffect(() => {
     const loadSettings = async () => {
       if (!state.user?.email) return;
-      
+
       try {
         const settings = await api.getAutoSendSettings(state.user.email);
         setAutoSendEnabled(settings.enabled);
@@ -57,7 +57,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
     const saveAutoSendEnabled = async () => {
       // Só salva após ter carregado as configurações iniciais
       if (!state.user?.email || !hasLoadedSettingsRef.current) return;
-      
+
       try {
         await api.updateAutoSendEnabled(state.user.email, autoSendEnabled);
         console.log('✅ Auto-send atualizado:', autoSendEnabled);
@@ -73,7 +73,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   useEffect(() => {
     const saveLastCheckedId = async () => {
       if (!state.user?.email || !lastCheckedId || !hasLoadedSettingsRef.current) return;
-      
+
       try {
         await api.updateLastCheckedOfferId(state.user.email, lastCheckedId);
       } catch (error: any) {
@@ -211,7 +211,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
+
         {/* Toggle de Envio Automático */}
         <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
           {isLoadingSettings ? (
@@ -225,15 +225,13 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
           <button
             onClick={() => setAutoSendEnabled(!autoSendEnabled)}
             disabled={isLoadingSettings}
-            className={`relative w-12 h-6 rounded-full transition-colors ${
-              autoSendEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
-            } ${isLoadingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`relative w-12 h-6 rounded-full transition-colors ${autoSendEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+              } ${isLoadingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
             title={autoSendEnabled ? 'Desativar envio automático' : 'Ativar envio automático'}
           >
             <div
-              className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
-                autoSendEnabled ? 'left-7' : 'left-1'
-              }`}
+              className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${autoSendEnabled ? 'left-7' : 'left-1'
+                }`}
             />
           </button>
         </div>
@@ -245,7 +243,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                 alert('Modo automático está ativo. Desative-o primeiro para buscar manualmente.');
                 return;
               }
-              
+
               setIsUpdatingExternal(true);
               try {
                 console.log('🔄 Buscando última oferta...');
@@ -270,11 +268,10 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
               }
             }}
             disabled={isUpdatingExternal || autoSendEnabled}
-            className={`flex-1 md:w-16 px-4 py-3.5 rounded-2xl font-black transition-all flex items-center justify-center gap-2 ${
-              autoSendEnabled 
-                ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-50' 
+            className={`flex-1 md:w-16 px-4 py-3.5 rounded-2xl font-black transition-all flex items-center justify-center gap-2 ${autoSendEnabled
+                ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95'
-            }`}
+              }`}
             title={autoSendEnabled ? 'Desativado - Modo automático ativo' : 'Sincronizar última oferta'}
           >
             {isUpdatingExternal ? <Loader2 size={20} className="animate-spin" /> : <RefreshCw size={20} />}
@@ -321,7 +318,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
               <div className="p-5">
                 <h4 className="font-bold text-slate-800 dark:text-white line-clamp-2 mb-4 h-12">{promo.title}</h4>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-xl font-black text-indigo-600">R$ {promo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-xl font-black text-indigo-600">{promo.price}</span>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => setPreviewPromo(promo)} className="flex-1 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:bg-indigo-50 transition-colors" title="Visualizar">
@@ -404,15 +401,14 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                   {/* Linha de Preço e Cupom */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Preço (R$)</label>
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Preço</label>
                       <input
                         required
-                        type="number"
-                        step="0.01"
-                        placeholder="0,00"
+                        type="text"
+                        placeholder="Ex: R$ 99,00"
                         className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-black text-xl text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none"
                         value={editingPromo?.price || ''}
-                        onChange={e => setEditingPromo(prev => ({ ...prev, price: Number(e.target.value) }))}
+                        onChange={e => setEditingPromo(prev => ({ ...prev, price: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
@@ -582,7 +578,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                     ...editingPromo,
                     id: editingPromo?.id || 'preview',
                     title: editingPromo?.title || 'Título de Exemplo',
-                    price: editingPromo?.price || 0,
+                    price: editingPromo?.price || '',
                     imageUrl: editingPromo?.imageUrl || '',
                     link: editingPromo?.link || '#',
                     status: 'DRAFT',
@@ -625,8 +621,8 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                 <div className="p-3 space-y-2 text-[14px] text-white">
                   <p>{previewPromo.title}</p>
                   <p className="font-bold">
-                    {previewPromo.originalPrice ? <span className="text-xs line-through opacity-50 mr-2">R$ {previewPromo.originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> : null}
-                    🔥 R$ {previewPromo.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {previewPromo.originalPrice ? <span className="text-xs line-through opacity-50 mr-2">{previewPromo.originalPrice}</span> : null}
+                    🔥 {previewPromo.price}
                   </p>
                   {previewPromo.installment && <p className="text-xs opacity-70">💳 {previewPromo.installment}</p>}
                   {previewPromo.seller && <p className="text-xs opacity-70">🏪 Vendido por: {previewPromo.seller}</p>}
