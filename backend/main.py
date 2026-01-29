@@ -194,12 +194,12 @@ async def check_and_send_new_offers():
                                 'price': price,
                                 'original_price': original_price,
                                 'link': attr.get('link', ''),
-                                'cupom': attr.get('cupom'),
+                                'cupom': attr.get('coupon'),
                                 'image_url': attr.get('image', ''),
                                 'seller': attr.get('seller'),
                                 'free_shipping': attr.get('free_shipping', False),
                                 'installment': attr.get('installment'),
-                                'extra_info': attr.get('extra_info'),
+                                'extra_info': attr.get('extraInfo'),
                                 'category': None
                             }
                             
