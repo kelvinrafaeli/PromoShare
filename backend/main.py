@@ -33,6 +33,7 @@ WEBHOOK_AUTH_TOKEN = os.getenv("WEBHOOK_AUTH_TOKEN", "a3f9c2e87b4d1a6e9f0c5b72e4
 EXTERNAL_API_BASE_URL = "https://api.divulgadorinteligente.com"
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://behdyuplqoxgdbujzkob.supabase.co")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "sb_publishable_OHdZ5yIbqvoowxDpmIEYqQ_xNzoMIB7")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")  # Service role key para operações admin
 
 # Cliente Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -55,9 +56,73 @@ class PromotionPayload(BaseModel):
     timestamp: str
     app: str
 
+class CreateUserPayload(BaseModel):
+    email: str
+    password: str
+    name: str
+    role: str = "USER"
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.post("/api/users")
+async def create_user(payload: CreateUserPayload):
+    """
+    Cria um novo usuário no Supabase Auth e na tabela users.
+    Requer a service role key para funcionar.
+    """
+    if not SUPABASE_SERVICE_KEY:
+        raise HTTPException(status_code=500, detail="Service key não configurada no servidor")
+    
+    try:
+        # Criar cliente admin com service role key
+        admin_client: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        
+        # Criar usuário no Supabase Auth
+        auth_response = admin_client.auth.admin.create_user({
+            "email": payload.email,
+            "password": payload.password,
+            "email_confirm": True,  # Confirma o email automaticamente
+            "user_metadata": {
+                "name": payload.name
+            }
+        })
+        
+        if not auth_response.user:
+            raise HTTPException(status_code=400, detail="Erro ao criar usuário no Auth")
+        
+        user_id = auth_response.user.id
+        
+        # Inserir na tabela users
+        user_data = {
+            "id": user_id,
+            "email": payload.email,
+            "name": payload.name,
+            "role": payload.role,
+            "avatar": f"https://ui-avatars.com/api/?name={payload.name.replace(' ', '+')}&background=random"
+        }
+        
+        db_response = admin_client.table("users").upsert(user_data).execute()
+        
+        logger.info(f"✅ Usuário criado: {payload.email} com role {payload.role}")
+        
+        return {
+            "success": True,
+            "user": {
+                "id": user_id,
+                "email": payload.email,
+                "name": payload.name,
+                "role": payload.role
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao criar usuário: {str(e)}")
+        error_message = str(e)
+        if "already been registered" in error_message.lower() or "already exists" in error_message.lower():
+            raise HTTPException(status_code=400, detail="Este email já está cadastrado")
+        raise HTTPException(status_code=500, detail=f"Erro ao criar usuário: {error_message}")
 
 @app.get("/api/products")
 async def get_external_product(sitename: str, start: int = 0, limit: int = 1):
@@ -184,14 +249,17 @@ async def check_and_send_new_offers():
                             # Prepara dados da oferta
                             attr = product['attributes']
                             
-                            price = attr.get('price', '')
+                            price_raw = attr.get('price', '')
+                            # Remove "R$" do preço para evitar duplicação no webhook
+                            import re
+                            price = re.sub(r'^R\$\s*', '', str(price_raw)).strip() if price_raw else ''
                             original_price = attr.get('price_from')
                             
                             # Salva no banco
                             offer_data = {
                                 'external_id': str(external_id),
                                 'title': attr.get('title', ''),
-                                'price': price,
+                                'price': price_raw,  # Mantém original no banco
                                 'original_price': original_price,
                                 'link': attr.get('link', ''),
                                 'cupom': attr.get('coupon'),
@@ -213,7 +281,7 @@ async def check_and_send_new_offers():
                                     "id": str(saved_offer.data[0]['id']),
                                     "title": offer_data['title'],
                                     "price": price,
-                                    "original_price": original_price,
+                                    # original_price removido - não exibir preço riscado
                                     "link": offer_data['link'],
                                     "cupom": offer_data['cupom'],
                                     "image_url": offer_data['image_url'],

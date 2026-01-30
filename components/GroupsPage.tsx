@@ -20,6 +20,9 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
+  // Verificar se é admin
+  const isAdmin = state.user?.role === 'ADMIN';
+
   // Bloquear scroll do body quando modal estiver aberto
   useEffect(() => {
     if (isModalOpen) {
@@ -31,9 +34,9 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
   }, [isModalOpen]);
 
   const filteredGroups = useMemo(() => {
-    if (state.user?.role === 'ADMIN') return state.groups;
-    return state.groups.filter(g => g.ownerId === state.user?.id);
-  }, [state.groups, state.user]);
+    // Todos os usuários veem todos os grupos
+    return state.groups;
+  }, [state.groups]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,13 +100,15 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
           <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Canais de Distribuição</h2>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-sm uppercase tracking-widest">Gerencie seus grupos de Telegram e WhatsApp</p>
         </div>
-        <button
-          onClick={() => { setEditingGroup({ platform: 'TELEGRAM', categories: [] }); setIsModalOpen(true); }}
-          className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all font-black uppercase tracking-widest shadow-xl shadow-indigo-600/30 active:scale-95 shrink-0"
-        >
-          <Plus size={22} />
-          Novo Canal
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => { setEditingGroup({ platform: 'TELEGRAM', categories: [] }); setIsModalOpen(true); }}
+            className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all font-black uppercase tracking-widest shadow-xl shadow-indigo-600/30 active:scale-95 shrink-0"
+          >
+            <Plus size={22} />
+            Novo Canal
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -124,34 +129,36 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ state, setState }) => {
                 <div className={`p-4 rounded-[1.2rem] ${group.platform === 'TELEGRAM' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
                   {group.platform === 'TELEGRAM' ? <MessageSquare size={28} /> : <Smartphone size={28} />}
                 </div>
-                <div className="flex gap-1.5">
-                  <button
-                    disabled={isDeleting || isConfirming}
-                    onClick={() => { setEditingGroup(group); setIsModalOpen(true); }}
-                    className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all"
-                  >
-                    <Edit3 size={20} />
-                  </button>
-                  <button
-                    disabled={isDeleting}
-                    onClick={() => handleDelete(group.id)}
-                    className={`p-2.5 rounded-xl transition-all flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tighter ${isConfirming
-                      ? 'bg-red-600 text-white animate-pulse shadow-lg'
-                      : 'text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30'
-                      }`}
-                  >
-                    {isDeleting ? (
-                      <Loader2 size={20} className="animate-spin" />
-                    ) : isConfirming ? (
-                      <>
-                        <AlertTriangle size={16} />
-                        Sim?
-                      </>
-                    ) : (
-                      <Trash2 size={20} />
-                    )}
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex gap-1.5">
+                    <button
+                      disabled={isDeleting || isConfirming}
+                      onClick={() => { setEditingGroup(group); setIsModalOpen(true); }}
+                      className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all"
+                    >
+                      <Edit3 size={20} />
+                    </button>
+                    <button
+                      disabled={isDeleting}
+                      onClick={() => handleDelete(group.id)}
+                      className={`p-2.5 rounded-xl transition-all flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tighter ${isConfirming
+                        ? 'bg-red-600 text-white animate-pulse shadow-lg'
+                        : 'text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30'
+                        }`}
+                    >
+                      {isDeleting ? (
+                        <Loader2 size={20} className="animate-spin" />
+                      ) : isConfirming ? (
+                        <>
+                          <AlertTriangle size={16} />
+                          Sim?
+                        </>
+                      ) : (
+                        <Trash2 size={20} />
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
               <h4 className="text-xl font-black text-slate-800 dark:text-white mb-2">{group.name}</h4>
               <div className="flex items-center gap-2 text-sm text-slate-400 dark:text-slate-500 mb-6 font-mono">

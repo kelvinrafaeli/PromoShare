@@ -10,13 +10,15 @@ import {
   Terminal,
   X,
   Sun,
-  Moon
+  Moon,
+  Shield
 } from 'lucide-react';
 
 import { User, AppState } from './types';
 import { api, debugLogs, supabase, addLog } from './services/supabase';
 import PromotionsPage from './components/PromotionsPage';
 import GroupsPage from './components/GroupsPage';
+import AdminPage from './components/AdminPage';
 import Login from './components/Login';
 
 const App: React.FC = () => {
@@ -32,7 +34,14 @@ const App: React.FC = () => {
   const [showDebug, setShowDebug] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
-    return (saved as 'light' | 'dark') || 'light';
+    const initialTheme = (saved as 'light' | 'dark') || 'light';
+    // Apply theme immediately on load
+    if (initialTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    return initialTheme;
   });
 
   useEffect(() => {
@@ -49,11 +58,13 @@ const App: React.FC = () => {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('users')
           .select('*')
           .eq('email', session.user.email)
           .single();
+
+        console.log('🔍 Profile carregado:', { profile, error, email: session.user.email });
 
         const userData: User = {
           id: session.user.id,
@@ -62,6 +73,8 @@ const App: React.FC = () => {
           role: (profile?.role as any) || 'USER',
           avatar: profile?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}`
         };
+
+        console.log('👤 User data final:', userData);
 
         setState(prev => ({ ...prev, user: userData }));
       }
@@ -163,6 +176,7 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/promotions" element={<PromotionsPage state={state} setState={setState} />} />
               <Route path="/groups" element={<GroupsPage state={state} setState={setState} />} />
+              <Route path="/admin" element={<AdminPage state={state} setState={setState} />} />
               <Route path="/" element={<Navigate to="/promotions" />} />
             </Routes>
           </div>
@@ -183,10 +197,11 @@ const BottomNav: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLog
   const navItems = [
     { label: 'Promos', icon: Send, path: '/promotions' },
     { label: 'Canais', icon: Users, path: '/groups' },
+    { label: 'Admin', icon: Shield, path: '/admin', adminOnly: true },
     { label: 'Sair', icon: LogOut, path: 'logout', action: onLogout }
   ];
 
-  const filteredNav = navItems;
+  const filteredNav = navItems.filter(item => !item.adminOnly || user.role === 'ADMIN');
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-4 py-2 pb-6 flex items-center justify-around z-50 backdrop-blur-lg bg-opacity-90">
@@ -263,9 +278,10 @@ const Sidebar: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogou
   const navItems = [
     { label: 'Promoções', icon: Send, path: '/promotions' },
     { label: 'Grupos', icon: Users, path: '/groups' },
+    { label: 'Admin', icon: Shield, path: '/admin', adminOnly: true },
   ];
 
-  const filteredNav = navItems;
+  const filteredNav = navItems.filter(item => !item.adminOnly || user.role === 'ADMIN');
 
   return (
     <aside className="w-64 bg-slate-900 dark:bg-black text-slate-300 flex flex-col hidden lg:flex border-r border-slate-800 shrink-0">

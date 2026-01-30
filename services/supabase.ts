@@ -92,6 +92,63 @@ export const api = {
     await supabase.auth.signOut();
   },
 
+  // ============ GESTÃO DE USUÁRIOS (ADMIN) ============
+
+  async getAllUsers(): Promise<User[]> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw handleSupabaseError(error, 'getAllUsers');
+
+    return (data || []).map((u: any) => ({
+      id: u.id,
+      name: u.name || u.email?.split('@')[0] || 'Usuário',
+      email: u.email,
+      role: u.role || 'USER',
+      avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || u.email)}`,
+      createdAt: u.created_at
+    }));
+  },
+
+  async updateUserRole(userId: string, role: 'ADMIN' | 'USER'): Promise<void> {
+    const { error } = await supabase
+      .from('users')
+      .update({ role })
+      .eq('id', userId);
+
+    if (error) throw handleSupabaseError(error, 'updateUserRole');
+    addLog('updateUserRole', 'SUCCESS', { userId, role });
+  },
+
+  async createUser(userData: { email: string; password: string; name: string; role: string }): Promise<User> {
+    // Chama o backend que tem a service role key para criar o usuário
+    const response = await fetch('http://localhost:8000/api/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Erro ao criar usuário: ${response.status}`);
+    }
+
+    const result = await response.json();
+    addLog('createUser', 'SUCCESS', { email: userData.email });
+    
+    return {
+      id: result.user.id,
+      name: result.user.name,
+      email: result.user.email,
+      role: result.user.role as 'ADMIN' | 'USER',
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(result.user.name)}&background=random`
+    };
+  },
+
   async getAutoSendSettings(userEmail: string): Promise<{ enabled: boolean; lastCheckedId: string | null }> {
     const { data, error } = await supabase
       .from('users')
@@ -211,11 +268,15 @@ export const api = {
       const { data: { session } } = await supabase.auth.getSession();
 
       const promoData = mapPromoFromDB(data);
+      
+      // Limpa o preço removendo "R$" duplicado se existir
+      const cleanPrice = promoData.price?.replace(/^R\$\s*/i, '').trim() || promoData.price;
+      
       const webhookPayload = {
         id: promoData.id,
         title: promoData.title,
-        price: promoData.price,
-        original_price: promoData.originalPrice,
+        price: cleanPrice,
+        // original_price removido - não exibir preço riscado
         link: promoData.link,
         cupom: promoData.coupon,
         image_url: promoData.imageUrl,
@@ -344,7 +405,7 @@ export const api = {
 
   async fetchExternalProduct(): Promise<Partial<Promotion>> {
     // Chama o backend que faz proxy para a API externa
-    const response = await fetch('/api/products?sitename=thautec&start=0&limit=1');
+    const response = await fetch('http://localhost:8000/api/products?sitename=thautec&start=0&limit=1');
 
     if (!response.ok) {
       throw new Error(`Erro na API: ${response.status}`);

@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Plus, Search, Trash2, Eye, Save,
-  Loader2, Upload, X, ImageIcon, Share2, ArrowLeft, MoreVertical, Smartphone, SquareCheck, Link, Edit3, RefreshCw, MessageCircle, Filter, Send, Zap
+  Loader2, Upload, X, ImageIcon, Share2, ArrowLeft, MoreVertical, Smartphone, SquareCheck, Link, Edit3, RefreshCw, MessageCircle, Filter, Send, Zap, ChevronDown
 } from 'lucide-react';
 import { AppState, Promotion } from '../types';
 import { api } from '../services/supabase';
@@ -28,6 +28,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
   const [lastCheckedId, setLastCheckedId] = useState<string | null>(null);
   const [autoSendNotification, setAutoSendNotification] = useState<string | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const hasLoadedSettingsRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -213,14 +214,14 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
         </div>
 
         {/* Toggle de Envio Automático */}
-        <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
           {isLoadingSettings ? (
             <Loader2 size={18} className="text-slate-400 animate-spin" />
           ) : (
             <Zap size={18} className={autoSendEnabled ? 'text-emerald-500' : 'text-slate-400'} />
           )}
-          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-            Envio Automático
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider whitespace-nowrap">
+            Auto
           </span>
           <button
             onClick={() => setAutoSendEnabled(!autoSendEnabled)}
@@ -236,73 +237,64 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
           </button>
         </div>
 
-        <div className="flex w-full md:w-auto gap-2">
-          <button
-            onClick={async () => {
-              if (autoSendEnabled) {
-                alert('Modo automático está ativo. Desative-o primeiro para buscar manualmente.');
-                return;
+        {/* Botão Atualizar */}
+        <button
+          onClick={async () => {
+            if (autoSendEnabled) {
+              alert('Modo automático está ativo. Desative-o primeiro para buscar manualmente.');
+              return;
+            }
+
+            setIsUpdatingExternal(true);
+            try {
+              console.log('🔄 Buscando última oferta...');
+              const externalData = await api.fetchExternalProduct();
+              console.log('✅ Produto encontrado:', externalData.title, 'ID:', externalData.externalId);
+
+              // Verifica se já existe uma promoção com este externalId
+              const existing = state.promotions.find(p => p.externalId === externalData.externalId);
+
+              if (existing) {
+                alert(`✅ Produto já cadastrado!\n\n"${existing.title}"\n\nEste produto já foi inserido anteriormente.`);
+              } else {
+                // Abre o modal com os dados para edição/envio
+                setEditingPromo(externalData);
+                setIsModalOpen(true);
               }
-
-              setIsUpdatingExternal(true);
-              try {
-                console.log('🔄 Buscando última oferta...');
-                const externalData = await api.fetchExternalProduct();
-                console.log('✅ Produto encontrado:', externalData.title, 'ID:', externalData.externalId);
-
-                // Verifica se já existe uma promoção com este externalId
-                const existing = state.promotions.find(p => p.externalId === externalData.externalId);
-
-                if (existing) {
-                  alert(`✅ Esta promoção já foi inserida!\n\n"${existing.title}"`);
-                } else {
-                  // Abre o modal com os dados para edição/envio
-                  setEditingPromo(externalData);
-                  setIsModalOpen(true);
-                }
-              } catch (error: any) {
-                console.error('❌ Erro:', error);
-                alert(`Erro ao buscar produto: ${error.message}`);
-              } finally {
-                setIsUpdatingExternal(false);
+            } catch (error: any) {
+              console.error('❌ Erro:', error);
+              
+              // Verifica se é erro de conexão com backend
+              if (error.message.includes('500') || error.message.includes('Failed to fetch')) {
+                alert('❌ Erro de conexão\n\nO servidor backend não está respondendo.\nVerifique se o backend está rodando em http://localhost:8000');
+              } else if (error.message.includes('Nenhum produto')) {
+                alert('ℹ️ Nenhum produto novo\n\nNão há novas ofertas disponíveis no momento.');
+              } else {
+                alert(`❌ Erro ao buscar produto\n\n${error.message}`);
               }
-            }}
-            disabled={isUpdatingExternal || autoSendEnabled}
-            className={`flex-1 md:w-16 px-4 py-3.5 rounded-2xl font-black transition-all flex items-center justify-center gap-2 ${autoSendEnabled
-                ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95'
-              }`}
-            title={autoSendEnabled ? 'Desativado - Modo automático ativo' : 'Sincronizar última oferta'}
-          >
-            {isUpdatingExternal ? <Loader2 size={20} className="animate-spin" /> : <RefreshCw size={20} />}
-          </button>
-          <button
-            onClick={() => { setEditingPromo({}); setIsModalOpen(true); }}
-            className="flex-[3] md:w-auto px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center gap-2"
-          >
-            <Plus size={20} />
-            Nova Promoção
-          </button>
-        </div>
+            } finally {
+              setIsUpdatingExternal(false);
+            }
+          }}
+          disabled={isUpdatingExternal || autoSendEnabled}
+          className={`px-4 py-3 rounded-2xl font-black transition-all flex items-center justify-center gap-2 ${autoSendEnabled
+              ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95'
+            }`}
+          title={autoSendEnabled ? 'Desativado - Modo automático ativo' : 'Sincronizar última oferta'}
+        >
+          {isUpdatingExternal ? <Loader2 size={20} className="animate-spin" /> : <RefreshCw size={20} />}
+        </button>
+
+        {/* Botão Nova Promoção */}
+        <button
+          onClick={() => { setEditingPromo({}); setIsModalOpen(true); }}
+          className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap"
+        >
+          <Plus size={20} />
+          <span className="hidden sm:inline">Nova</span>
+        </button>
       </div>
-
-      {/* Badge de Status do Envio Automático */}
-      {autoSendEnabled && (
-        <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 p-4 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-500">
-          <div className="relative">
-            <Zap size={20} className="text-emerald-600 dark:text-emerald-400" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
-              Modo Automático Ativo (Backend Worker)
-            </p>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              O servidor está verificando novas ofertas a cada 1 minuto e enviando automaticamente. Funciona 24/7, mesmo com navegador fechado.
-            </p>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredPromos.map((promo) => {
@@ -432,25 +424,14 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Vendedor</label>
-                      <input
-                        placeholder="Ex: Amazon, Magalu..."
-                        className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
-                        value={editingPromo?.seller || ''}
-                        onChange={e => setEditingPromo(prev => ({ ...prev, seller: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Parcelamento</label>
-                      <input
-                        placeholder="Ex: 10x sem juros"
-                        className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
-                        value={editingPromo?.installment || ''}
-                        onChange={e => setEditingPromo(prev => ({ ...prev, installment: e.target.value }))}
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Parcelamento</label>
+                    <input
+                      placeholder="Ex: 10x sem juros"
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                      value={editingPromo?.installment || ''}
+                      onChange={e => setEditingPromo(prev => ({ ...prev, installment: e.target.value }))}
+                    />
                   </div>
 
                   <div className="flex items-center gap-4">
@@ -469,19 +450,37 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
               </div>
 
               {/* Seleção de Grupos: Transmission Board - Full Width */}
-              <div className="space-y-4 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden">
-                {/* Header com Resumo */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
+              <div className="space-y-4 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden">
+                {/* Header com Resumo - Clicável para expandir */}
+                <button
+                  type="button"
+                  onClick={() => setIsPanelExpanded(!isPanelExpanded)}
+                  className="w-full flex items-center justify-between gap-4 hover:opacity-80 transition-opacity"
+                >
+                  <div className="text-left">
                     <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tighter flex items-center gap-2">
                       <Share2 size={18} className="text-indigo-500" />
                       Painel de Transmissão
+                      {selectedGroups.length > 0 && (
+                        <span className="ml-2 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px]">
+                          {selectedGroups.length} selecionados
+                        </span>
+                      )}
                     </h3>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      {selectedGroups.length} canais selecionados para disparo
+                      {isPanelExpanded ? 'Clique para recolher' : 'Clique para expandir e selecionar canais'}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <ChevronDown 
+                    size={20} 
+                    className={`text-slate-400 transition-transform duration-300 ${isPanelExpanded ? 'rotate-180' : ''}`} 
+                  />
+                </button>
+
+                {/* Conteúdo Expansível */}
+                <div className={`transition-all duration-300 overflow-hidden ${isPanelExpanded ? 'max-h-[600px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+                  {/* Botões de ação */}
+                  <div className="flex gap-2 mb-4">
                     <button
                       type="button"
                       onClick={() => setSelectedGroups(state.groups.map(g => g.id))}
@@ -497,7 +496,6 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                       Limpar
                     </button>
                   </div>
-                </div>
 
                 {/* Filtros e Busca */}
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -568,6 +566,7 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
                     </div>
                   )}
                 </div>
+                </div>
               </div>
 
               <div className="flex justify-end gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -618,18 +617,18 @@ const PromotionsPage: React.FC<PromotionsPageProps> = ({ state, setState }) => {
             <div className="flex-1 p-4 overflow-y-auto flex flex-col justify-end">
               <div className="bg-[#182533] rounded-2xl overflow-hidden self-start max-w-[85%] shadow-xl">
                 <img src={previewPromo.imageUrl} className="w-full aspect-square object-cover" />
-                <div className="p-3 space-y-2 text-[14px] text-white">
+                <div className="p-3 space-y-1 text-[14px] text-white">
                   <p>{previewPromo.title}</p>
-                  <p className="font-bold">
-                    {previewPromo.originalPrice ? <span className="text-xs line-through opacity-50 mr-2">{previewPromo.originalPrice}</span> : null}
-                    🔥 {previewPromo.price}
+                  <p className="font-bold pt-1">
+                    🔥 {previewPromo.price?.replace(/^R\$\s*/i, '').trim() ? `R$ ${previewPromo.price.replace(/^R\$\s*/i, '').trim()}` : previewPromo.price}
                   </p>
-                  {previewPromo.installment && <p className="text-xs opacity-70">💳 {previewPromo.installment}</p>}
-                  {previewPromo.seller && <p className="text-xs opacity-70">🏪 Vendido por: {previewPromo.seller}</p>}
-                  {previewPromo.freeShipping && <p className="text-xs text-emerald-400">✅ Frete Grátis</p>}
-                  {previewPromo.coupon && <p className="uppercase">🤑 Cupom: {previewPromo.coupon}</p>}
-                  <p className="text-[#64b5f6] underline break-all">{previewPromo.link}</p>
-                  {previewPromo.extraInfo && <p className="text-[10px] italic opacity-60">{previewPromo.extraInfo}</p>}
+                  {previewPromo.installment && <p>💳 {previewPromo.installment}</p>}
+                  {previewPromo.freeShipping && <p className="text-emerald-400 pt-1">✅ Frete Grátis</p>}
+                  {previewPromo.coupon && <p className="pt-1">🤑 CUPOM: {previewPromo.coupon.toUpperCase()}</p>}
+                  <p className="pt-1">🛒 Compre aqui:</p>
+                  <p className="text-[#64b5f6] underline" style={{ wordBreak: 'break-all', maxWidth: '200px' }}>
+                    {previewPromo.link}
+                  </p>
                 </div>
               </div>
             </div>
