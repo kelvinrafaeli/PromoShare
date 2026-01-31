@@ -80,11 +80,20 @@ export const api = {
   async login(email: string, password: string): Promise<User> {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error('Credenciais inválidas.');
+    
+    // Consulta o perfil do usuário na tabela users para obter o role correto
+    const { data: profile } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', data.user.email)
+      .single();
+    
     return {
       id: data.user.id,
-      name: data.user.email?.split('@')[0] || 'Usuário',
+      name: profile?.name || data.user.email?.split('@')[0] || 'Usuário',
       email: data.user.email || '',
-      role: 'USER'
+      role: (profile?.role as any) || 'USER',
+      avatar: profile?.avatar || `https://ui-avatars.com/api/?name=${data.user.email}`
     };
   },
 
