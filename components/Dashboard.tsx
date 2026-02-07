@@ -17,7 +17,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ state }) => {
-  const { promotions, groups, categories, user } = state;
+  const { promotions, groups, user } = state;
 
   const userPromos = user?.role === 'ADMIN' ? promotions : promotions.filter(p => p.ownerId === user?.id);
   const userGroups = user?.role === 'ADMIN' ? groups : groups.filter(g => g.ownerId === user?.id);
@@ -72,10 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     { name: 'Dom', count: 14, label: 'Domingo' },
   ];
 
-  const categoryData = categories.map(cat => ({
-    name: cat.name,
-    value: userPromos.filter(p => p.mainCategoryId === cat.id).length
-  })).filter(d => d.value > 0);
+  const categoryData: { name: string; value: number }[] = [];
 
   const COLORS = ['#6366f1', '#10b981', '#06b6d4', '#f59e0b', '#ef4444'];
 
@@ -257,15 +254,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 text-xs uppercase font-black tracking-wider">
                 <tr>
                   <th className="px-6 py-4 text-left">Promoção</th>
-                  <th className="px-6 py-4 text-left">Categoria</th>
-                  <th className="px-6 py-4 text-left">Preço</th>
                   <th className="px-6 py-4 text-left">Status</th>
                   <th className="px-6 py-4 text-left">Data</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {userPromos.slice(0, 5).map((promo) => {
-                  const cat = categories.find(c => c.id === promo.mainCategoryId);
                   return (
                     <tr 
                       key={promo.id} 
@@ -277,24 +271,16 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                             <img 
                               src={promo.imageUrl} 
                               className="w-12 h-12 rounded-xl object-cover bg-slate-100 dark:bg-slate-800 shadow-sm ring-2 ring-slate-100 dark:ring-slate-800 group-hover:ring-indigo-500/50 transition-all" 
-                              alt={promo.title}
+                              alt={promo.description}
                             />
                           </div>
                           <div>
                             <span className="font-bold text-slate-800 dark:text-white text-sm block group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                              {promo.title}
+                              {promo.description.split('\n').find(l => l.trim()) || 'Oferta'}
                             </span>
                             <span className="text-xs text-slate-500 dark:text-slate-400">ID: {promo.id.slice(0, 8)}</span>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge className={`${cat?.color || 'bg-slate-200 dark:bg-slate-700'} text-white shadow-sm`}>
-                          {cat?.name || 'Geral'}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="font-black text-slate-900 dark:text-white text-base">{promo.price}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">

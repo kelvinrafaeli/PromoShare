@@ -3,20 +3,17 @@ import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const optimizePromotionContent = async (title: string, price: number, link: string, coupon?: string) => {
+export const optimizePromotionContent = async (description: string) => {
   try {
     const prompt = `
-      Crie uma mensagem persuasiva para Telegram/WhatsApp de uma promoção.
-      Título: ${title}
-      Preço: R$ ${price.toFixed(2)}
-      Link: ${link}
-      Cupom: ${coupon || 'Nenhum'}
+      Ajuste a descrição de uma promoção para Telegram/WhatsApp, mantendo o conteúdo.
+      Descrição original:
+      ${description}
       
       Regras:
       - Use emojis relevantes.
-      - Destaque o preço.
       - Inclua uma chamada para ação (CTA) curta.
-      - Formato: Markdown (negrito para preço e título).
+      - Formato: Markdown (negrito para trechos importantes).
       - Responda APENAS com o conteúdo da mensagem formatada.
     `;
 

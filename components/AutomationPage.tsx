@@ -13,7 +13,7 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ state, setState }) => {
   const [newRule, setNewRule] = useState<Partial<AutomationRule>>({ 
     isActive: true, 
     targetGroupIds: [],
-    condition: { field: 'price', operator: 'less_than', value: 0 }
+    condition: { field: 'description', operator: 'contains', value: '' }
   });
 
   const handleSave = (e: React.FormEvent) => {
@@ -101,9 +101,9 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ state, setState }) => {
                 </div>
                 {rule.condition && (
                   <div className="flex items-center gap-3 text-sm">
-                    <span className="text-slate-400 font-medium uppercase tracking-tight">E {rule.condition.field === 'price' ? 'PREÇO' : 'TÍTULO'}</span>
+                    <span className="text-slate-400 font-medium uppercase tracking-tight">E DESCRIÇÃO</span>
                     <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-100">
-                      {rule.condition.operator === 'less_than' ? '<' : 'CONTÉM'} {rule.condition.value}
+                      CONTÉM {rule.condition.value}
                     </span>
                   </div>
                 )}
@@ -188,8 +188,7 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ state, setState }) => {
                         condition: { ...prev.condition!, field: e.target.value as any } 
                       }))}
                     >
-                      <option value="price">Preço menor que</option>
-                      <option value="title">Título contém</option>
+                      <option value="description">Descrição contém</option>
                     </select>
                     <input 
                       type="text"

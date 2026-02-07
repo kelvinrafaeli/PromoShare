@@ -32,42 +32,53 @@ const handleSupabaseError = (error: any, method: string) => {
   return new Error(friendlyMessage);
 };
 
+const buildDescriptionFromExternal = (attr: any) => {
+  const title = (attr?.title || '').toString().trim();
+  const price = (attr?.price || '').toString().trim();
+  const installment = (attr?.installment || '').toString().trim();
+  const coupon = (attr?.coupon || '').toString().trim();
+  const link = (attr?.link || '').toString().trim();
+
+  const lines: string[] = [];
+
+  if (title) lines.push(title);
+
+  if (price || installment) {
+    lines.push('');
+    if (price) lines.push(`🔥 ${price}`);
+    if (installment) lines.push(`💳 ou ${installment}`);
+  }
+
+  if (coupon) {
+    lines.push('');
+    lines.push(`🤑 CUPOM: ${coupon}`);
+  }
+
+  if (link) {
+    lines.push('');
+    lines.push('🛒 Compre aqui:');
+    lines.push(link);
+  }
+
+  return lines.join('\n').trim();
+};
+
 // Mapeamento exato com a sua tabela 'offers'
 const mapPromoFromDB = (p: any): Promotion => ({
   id: p.id.toString(),
-  externalId: p.external_id || undefined,
-  title: p.title || '',
-  price: p.price || '',
-  originalPrice: p.original_price || undefined,
-  link: p.link || '',
-  coupon: p.cupom || '',           // Mapeia coluna 'cupom'
-  imageUrl: p.image_url || '',     // Mapeia coluna 'image_url'
-  mainCategoryId: p.category || '', // Mapeia coluna 'category'
-  secondaryCategoryIds: [],
+  description: p.description || '',
+  imageUrl: p.image_url || '',
   status: 'SENT',
   createdAt: p.created_at,
-  ownerId: p.owner_id || 'system', // Mantém leitura com fallback, caso a coluna seja criada futuramente
+  ownerId: p.owner_id || 'system',
   targetGroupIds: [],
-  seller: p.seller || undefined,
-  freeShipping: p.free_shipping || undefined,
-  installment: p.installment || undefined,
-  extraInfo: p.extra_info || undefined
+  embedding: p.embedding || null
 });
 
 const mapPromoToDB = (p: Promotion) => {
   const base: any = {
-    title: p.title,
-    price: p.price,
-    original_price: p.originalPrice,
-    link: p.link,
-    cupom: p.coupon,           // Grava na coluna 'cupom'
-    image_url: p.imageUrl,     // Grava na coluna 'image_url'
-    category: p.mainCategoryId, // Grava na coluna 'category'
-    external_id: p.externalId,
-    seller: p.seller,
-    free_shipping: p.freeShipping,
-    installment: p.installment,
-    extra_info: p.extraInfo
+    description: p.description,
+    image_url: p.imageUrl
   };
   // Se for uma promoção existente, incluímos o ID para o upsert funcionar como atualização
   if (p.id && !p.id.startsWith('temp-')) {
@@ -259,7 +270,7 @@ export const api = {
    * PASSO 2: Salva os dados na tabela 'offers' incluindo a 'image_url'
    */
   async savePromotion(promo: Promotion, allGroups: Group[] = []): Promise<Promotion> {
-    addLog('savePromotion', 'INFO', { title: promo.title });
+    addLog('savePromotion', 'INFO', { description: promo.description });
 
     const payload = mapPromoToDB(promo);
     const { data, error } = await supabase
@@ -277,23 +288,11 @@ export const api = {
       const { data: { session } } = await supabase.auth.getSession();
 
       const promoData = mapPromoFromDB(data);
-      
-      // Limpa o preço removendo "R$" duplicado se existir
-      const cleanPrice = promoData.price?.replace(/^R\$\s*/i, '').trim() || promoData.price;
-      
+
       const webhookPayload = {
         id: promoData.id,
-        title: promoData.title,
-        price: cleanPrice,
-        // original_price removido - não exibir preço riscado
-        link: promoData.link,
-        cupom: promoData.coupon,
+        description: promoData.description,
         image_url: promoData.imageUrl,
-        seller: promoData.seller,
-        free_shipping: promoData.freeShipping,
-        installment: promoData.installment,
-        extra_info: promoData.extraInfo,
-        category: promoData.mainCategoryId,
         target_groups: promo.targetGroupIds
           .map(gid => allGroups.find(g => g.id === gid)?.apiIdentifier)
           .filter(Boolean),
@@ -431,17 +430,8 @@ export const api = {
     const attr = product.attributes;
 
     return {
-      externalId: product.id.toString(),
-      title: attr.title,
-      price: attr.price,
-      originalPrice: attr.price_from,
-      link: attr.link,
-      coupon: attr.coupon,
-      imageUrl: attr.image,
-      seller: attr.seller,
-      freeShipping: attr.free_shipping,
-      installment: attr.installment,
-      extraInfo: attr.extraInfo
+      description: buildDescriptionFromExternal(attr),
+      imageUrl: attr.image
     };
   }
 };

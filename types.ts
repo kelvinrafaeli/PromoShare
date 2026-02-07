@@ -32,15 +32,8 @@ export interface Group {
 
 export interface Promotion {
   id: string;
-  externalId?: string;
-  title: string;
-  price: string;
-  originalPrice?: string;
-  link: string;
-  coupon?: string;
+  description: string;
   imageUrl: string;
-  mainCategoryId: string | null;
-  secondaryCategoryIds: string[];
   status: PromoStatus;
   scheduledAt?: string;
   sentAt?: string;
@@ -48,10 +41,7 @@ export interface Promotion {
   content?: string; // Formatted message
   targetGroupIds: string[];
   createdAt?: string;
-  seller?: string;
-  freeShipping?: boolean;
-  installment?: string;
-  extraInfo?: string;
+  embedding?: number[] | null;
 }
 
 export interface AutomationRule {
@@ -60,8 +50,8 @@ export interface AutomationRule {
   triggerCategory: string;
   targetGroupIds: string[];
   condition?: {
-    field: 'price' | 'title';
-    operator: 'less_than' | 'contains';
+    field: 'description';
+    operator: 'contains';
     value: any;
   };
   isActive: boolean;

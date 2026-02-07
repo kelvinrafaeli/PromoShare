@@ -40,17 +40,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 class PromotionPayload(BaseModel):
     id: str
-    title: str
-    price: str
-    original_price: Optional[str] = None
-    link: str
-    cupom: Optional[str] = None
+    description: str
     image_url: str
-    seller: Optional[str] = None
-    free_shipping: Optional[bool] = None
-    installment: Optional[str] = None
-    extra_info: Optional[str] = None
-    category: Optional[str] = None
     target_groups: List[Optional[str]]
     target_details: List[dict]
     timestamp: str
@@ -191,6 +182,36 @@ async def send_webhook(promo: PromotionPayload, authorization: Optional[str] = H
             print(f"Erro no Webhook: {str(e)}")
             return {"status": "webhook_failed", "detail": str(e)}
 
+def build_description(attr: dict) -> str:
+    title = str(attr.get('title', '') or '').strip()
+    price = str(attr.get('price', '') or '').strip()
+    installment = str(attr.get('installment', '') or '').strip()
+    coupon = str(attr.get('coupon', '') or '').strip()
+    link = str(attr.get('link', '') or '').strip()
+
+    lines: List[str] = []
+
+    if title:
+        lines.append(title)
+
+    if price or installment:
+        lines.append('')
+        if price:
+            lines.append(f"🔥 {price}")
+        if installment:
+            lines.append(f"💳 ou {installment}")
+
+    if coupon:
+        lines.append('')
+        lines.append(f"🤑 CUPOM: {coupon}")
+
+    if link:
+        lines.append('')
+        lines.append('🛒 Compre aqui:')
+        lines.append(link)
+
+    return "\n".join(lines).strip()
+
 # ===== WORKER DE AUTO-SEND =====
 
 async def check_and_send_new_offers():
@@ -238,8 +259,13 @@ async def check_and_send_new_offers():
                     if external_id and str(external_id) != str(last_checked_id):
                         logger.info(f"🔔 Nova oferta detectada para {user['email']}: {product['attributes']['title']}")
                         
+                        description = build_description(product.get('attributes', {}))
+                        if not description:
+                            logger.info("Descrição vazia, ignorando oferta.")
+                            continue
+
                         # Verifica se já existe no banco
-                        existing = supabase.table('offers').select('*').eq('external_id', str(external_id)).execute()
+                        existing = supabase.table('offers').select('id').eq('description', description).execute()
                         
                         if not existing.data or len(existing.data) == 0:
                             # Busca grupos do usuário
@@ -249,26 +275,10 @@ async def check_and_send_new_offers():
                             # Prepara dados da oferta
                             attr = product['attributes']
                             
-                            price_raw = attr.get('price', '')
-                            # Remove "R$" do preço para evitar duplicação no webhook
-                            import re
-                            price = re.sub(r'^R\$\s*', '', str(price_raw)).strip() if price_raw else ''
-                            original_price = attr.get('price_from')
-                            
                             # Salva no banco
                             offer_data = {
-                                'external_id': str(external_id),
-                                'title': attr.get('title', ''),
-                                'price': price_raw,  # Mantém original no banco
-                                'original_price': original_price,
-                                'link': attr.get('link', ''),
-                                'cupom': attr.get('coupon'),
-                                'image_url': attr.get('image', ''),
-                                'seller': attr.get('seller'),
-                                'free_shipping': attr.get('free_shipping', False),
-                                'installment': attr.get('installment'),
-                                'extra_info': attr.get('extraInfo'),
-                                'category': None
+                                'description': description,
+                                'image_url': attr.get('image', '')
                             }
                             
                             saved_offer = supabase.table('offers').insert(offer_data).execute()
@@ -279,17 +289,8 @@ async def check_and_send_new_offers():
                                 # Prepara payload do webhook
                                 webhook_payload = {
                                     "id": str(saved_offer.data[0]['id']),
-                                    "title": offer_data['title'],
-                                    "price": price,
-                                    # original_price removido - não exibir preço riscado
-                                    "link": offer_data['link'],
-                                    "cupom": offer_data['cupom'],
+                                    "description": offer_data['description'],
                                     "image_url": offer_data['image_url'],
-                                    "seller": offer_data['seller'],
-                                    "free_shipping": offer_data['free_shipping'],
-                                    "installment": offer_data['installment'],
-                                    "extra_info": offer_data['extra_info'],
-                                    "category": None,
                                     "target_groups": [g['api_identifier'] for g in all_groups],
                                     "target_details": [
                                         {
