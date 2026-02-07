@@ -5,6 +5,7 @@ const supabaseUrl = 'https://behdyuplqoxgdbujzkob.supabase.co';
 const supabaseKey = 'sb_publishable_OHdZ5yIbqvoowxDpmIEYqQ_xNzoMIB7';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '';
 
 export const debugLogs: { timestamp: string; method: string; status: string; details: any }[] = [];
 
@@ -413,7 +414,7 @@ export const api = {
 
   async fetchExternalProduct(): Promise<Partial<Promotion>> {
     // Chama o backend que faz proxy para a API externa
-    const response = await fetch('http://localhost:8000/api/products?sitename=thautec&start=0&limit=1');
+    const response = await fetch(`${apiBaseUrl}/api/products?sitename=thautec&start=0&limit=1`);
 
     if (!response.ok) {
       throw new Error(`Erro na API: ${response.status}`);
